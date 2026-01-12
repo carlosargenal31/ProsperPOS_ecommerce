@@ -1,264 +1,415 @@
 <template>
-  <div class="main-wrapper">
-    <layout-header></layout-header>
-    <layout-sidebar></layout-sidebar>
+  <div class="cart-page">
+    <ShopHeader />
 
-    <div class="page-wrapper">
-      <div class="content">
-        <div class="page-header">
-          <div class="add-item d-flex">
-            <div class="page-title">
-              <h4>Mi Carrito</h4>
-              <h6>Gestiona los productos de tu carrito</h6>
+    <div class="container-fluid px-4 py-5">
+      <!-- Progress Steps -->
+      <div class="checkout-steps mb-5">
+        <div class="step active">
+          <div class="step-number">1</div>
+          <div class="step-label">CARRITO DE COMPRA</div>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-label">INGRESA TU CORREO</div>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-label">ENVÍO Y PAGO</div>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <div class="step-label">CONFIRMACIÓN</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <!-- Cart Items Table -->
+        <div class="col-lg-8">
+          <div class="cart-table-wrapper">
+            <table class="cart-table" v-if="cartItems.length > 0">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Cantidad</th>
+                  <th>Precio</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in cartItems" :key="item.product_id" class="cart-row">
+                  <td class="product-cell">
+                    <div class="product-info">
+                      <img :src="item.image || '/placeholder-product.png'" :alt="item.name" class="product-img" />
+                      <div class="product-details">
+                        <h4>{{ item.name }}</h4>
+                        <p class="product-meta">Código: {{ item.code }}</p>
+                        <p class="product-meta" v-if="item.category">Categoría: {{ item.category }}</p>
+                        <p class="product-meta" v-if="item.subcategory">Subcategoría: {{ item.subcategory }}</p>
+                        <p class="product-meta" v-if="item.brand">Marca: {{ item.brand }}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="quantity-cell">
+                    <div class="quantity-controls">
+                      <button @click="updateQuantity(item, -1)" class="qty-btn">-</button>
+                      <input type="number" v-model.number="item.quantity" @change="saveCart" min="1" class="qty-input" />
+                      <button @click="updateQuantity(item, 1)" class="qty-btn">+</button>
+                    </div>
+                  </td>
+                  <td class="price-cell">
+                    <span class="price">L {{ formatPrice(item.price * item.quantity) }}</span>
+                  </td>
+                  <td class="remove-cell">
+                    <button @click="removeItem(item)" class="btn-remove">
+                      <i class="ti ti-x"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div v-if="cartItems.length === 0" class="empty-cart">
+              <i class="ti ti-shopping-cart-off"></i>
+              <p>Tu carrito está vacío</p>
+              <router-link to="/shop/catalog" class="btn-continue-shopping">
+                Continuar comprando
+              </router-link>
             </div>
           </div>
-          <ul class="table-top-head">
-            <li>
-              <div class="page-btn">
-                <router-link to="/ecommerce/catalog" class="btn btn-secondary">
-                  <i class="ti ti-arrow-left me-2"></i>
-                  Continuar Comprando
-                </router-link>
-              </div>
-            </li>
-          </ul>
         </div>
 
-      <div v-if="loading" class="loading">
-        <i class="mdi mdi-loading mdi-spin"></i>
-        Cargando carrito...
-      </div>
-
-      <div v-else-if="!cart || cart.items.length === 0" class="empty-cart">
-        <i class="mdi mdi-cart-outline"></i>
-        <h2>Tu carrito está vacío</h2>
-        <p>Agrega productos para hacer un pedido</p>
-        <router-link to="/shop" class="btn-shop">
-          Ir a la Tienda
-        </router-link>
-      </div>
-
-      <div v-else class="cart-content">
-        <div class="cart-items">
-          <div
-            v-for="item in cart.items"
-            :key="item.cart_id"
-            class="cart-item"
-          >
-            <div class="item-image">
-              <img
-                :src="item.product_image || '/placeholder-product.png'"
-                :alt="item.product_name"
-                @error="handleImageError"
-              />
+        <!-- Summary Sidebar -->
+        <div class="col-lg-4">
+          <div class="summary-card">
+            <h3>¿Tienes un código de promoción?</h3>
+            <div class="promo-input-group">
+              <input type="text" v-model="promoCode" placeholder="Código" class="promo-input" />
+              <button @click="applyPromo" class="btn-apply">Aplicar</button>
             </div>
 
-            <div class="item-info">
-              <h3>{{ item.product_name }}</h3>
-              <p class="item-code">Código: {{ item.product_code }}</p>
-              <p class="item-price">L{{ formatPrice(item.unit_price) }}</p>
-              <p v-if="item.tax_rate > 0" class="item-tax">
-                + {{ item.tax_rate }}% ISV
-              </p>
+            <div class="summary-totals">
+              <div class="summary-row">
+                <span>Subtotal</span>
+                <span class="amount">L {{ formatPrice(subtotal) }}</span>
+              </div>
+              <div class="summary-row">
+                <span>ISV (15%)</span>
+                <span class="amount">L {{ formatPrice(taxAmount) }}</span>
+              </div>
+              <div class="summary-row total-row">
+                <span>Total</span>
+                <span class="amount">L {{ formatPrice(total) }}</span>
+              </div>
             </div>
 
-            <div class="item-quantity">
-              <button @click="updateQuantity(item, item.quantity - 1)">
-                <i class="mdi mdi-minus"></i>
-              </button>
-              <input
-                :value="item.quantity"
-                @change="updateQuantity(item, $event.target.value)"
-                type="number"
-                min="1"
-                :max="item.stock_available"
-              />
-              <button @click="updateQuantity(item, item.quantity + 1)">
-                <i class="mdi mdi-plus"></i>
-              </button>
-            </div>
-
-            <div class="item-total">
-              <p class="total-label">Subtotal:</p>
-              <p class="total-amount">L{{ formatPrice(item.total) }}</p>
-            </div>
-
-            <button @click="removeItem(item)" class="btn-remove">
-              <i class="mdi mdi-delete"></i>
+            <button @click="proceedToCheckout" class="btn-checkout-full" :disabled="cartItems.length === 0">
+              Continuar con el pedido
             </button>
           </div>
         </div>
-
-        <div class="cart-summary">
-          <h2>Resumen del Pedido</h2>
-
-          <div class="summary-row">
-            <span>Subtotal:</span>
-            <span>L{{ formatPrice(cart.summary.subtotal) }}</span>
-          </div>
-
-          <div class="summary-row">
-            <span>ISV:</span>
-            <span>L{{ formatPrice(cart.summary.tax_amount) }}</span>
-          </div>
-
-          <div class="summary-row summary-total">
-            <span>Total:</span>
-            <span>L{{ formatPrice(cart.summary.total) }}</span>
-          </div>
-
-          <button @click="goToCheckout" class="btn-checkout">
-            Proceder al Pedido
-            <i class="mdi mdi-arrow-right"></i>
-          </button>
-
-          <button @click="clearCart" class="btn-clear">
-            Vaciar Carrito
-          </button>
-        </div>
       </div>
     </div>
-  </div>
+
   </div>
 </template>
 
-<script>
-import { ref, onMounted } from 'vue'
+<script setup>
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { cartService } from '@/api/ecommerce'
+import axios from 'axios'
+import ShopHeader from '@/components/ShopHeader.vue'
 
-export default {
-  name: 'ShopCart',
-  setup() {
-    const router = useRouter()
+const router = useRouter()
+const cartItems = ref([])
+const promoCode = ref('')
+const companyInfo = ref(null)
 
-    const cart = ref(null)
-    const loading = ref(false)
+const subtotal = computed(() => {
+  return cartItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+})
 
-    const loadCart = async () => {
-      try {
-        loading.value = true
-        const response = await cartService.getCart()
-        if (response.success) {
-          cart.value = response.data
-        }
-      } catch (error) {
-        console.error('Error loading cart:', error)
-        alert('Error al cargar el carrito')
-      } finally {
-        loading.value = false
-      }
-    }
+const taxAmount = computed(() => {
+  return cartItems.value.reduce((sum, item) => {
+    const itemTotal = item.price * item.quantity
+    const itemTax = itemTotal * ((item.tax_rate || 0) / 100)
+    return sum + itemTax
+  }, 0)
+})
 
-    const updateQuantity = async (item, newQuantity) => {
-      const quantity = parseInt(newQuantity)
+const total = computed(() => {
+  return subtotal.value + taxAmount.value
+})
 
-      if (quantity < 1) {
-        return removeItem(item)
-      }
-
-      if (quantity > item.stock_available) {
-        alert(`Stock máximo disponible: ${item.stock_available}`)
-        return
-      }
-
-      try {
-        await cartService.updateQuantity(item.product_id, quantity)
-        await loadCart()
-      } catch (error) {
-        console.error('Error updating quantity:', error)
-        alert(error.response?.data?.message || 'Error al actualizar cantidad')
-      }
-    }
-
-    const removeItem = async (item) => {
-      if (!confirm('¿Eliminar este producto del carrito?')) {
-        return
-      }
-
-      try {
-        await cartService.removeItem(item.product_id)
-        await loadCart()
-      } catch (error) {
-        console.error('Error removing item:', error)
-        alert('Error al eliminar producto')
-      }
-    }
-
-    const clearCart = async () => {
-      if (!confirm('¿Vaciar todo el carrito?')) {
-        return
-      }
-
-      try {
-        await cartService.clearCart()
-        await loadCart()
-      } catch (error) {
-        console.error('Error clearing cart:', error)
-        alert('Error al vaciar carrito')
-      }
-    }
-
-    const goToCheckout = () => {
-      router.push('/shop/checkout')
-    }
-
-    const formatPrice = (price) => {
-      return parseFloat(price || 0).toFixed(2)
-    }
-
-    const handleImageError = (e) => {
-      e.target.src = '/placeholder-product.png'
-    }
-
-    onMounted(() => {
-      loadCart()
-    })
-
-    return {
-      cart,
-      loading,
-      updateQuantity,
-      removeItem,
-      clearCart,
-      goToCheckout,
-      formatPrice,
-      handleImageError
+const loadCart = () => {
+  const savedCart = localStorage.getItem('ecommerce_cart')
+  if (savedCart) {
+    try {
+      cartItems.value = JSON.parse(savedCart)
+    } catch (error) {
+      cartItems.value = []
     }
   }
 }
+
+const saveCart = () => {
+  localStorage.setItem('ecommerce_cart', JSON.stringify(cartItems.value))
+  window.dispatchEvent(new Event('cart-updated'))
+}
+
+const updateQuantity = (item, change) => {
+  const newQuantity = item.quantity + change
+  if (newQuantity > 0) {
+    item.quantity = newQuantity
+    saveCart()
+  }
+}
+
+const removeItem = (item) => {
+  const index = cartItems.value.findIndex(i => i.product_id === item.product_id)
+  if (index > -1) {
+    cartItems.value.splice(index, 1)
+    saveCart()
+  }
+}
+
+const applyPromo = () => {
+  if (promoCode.value.trim()) {
+    alert('Función de código promocional en desarrollo')
+  }
+}
+
+const proceedToCheckout = () => {
+  router.push('/shop/checkout')
+}
+
+const formatPrice = (price) => {
+  return parseFloat(price).toFixed(2)
+}
+
+const fetchCompanyInfo = async () => {
+  try {
+    const response = await axios.get('http://localhost:3000/api/v1/companies/public/default')
+    if (response.data && response.data.success) {
+      companyInfo.value = response.data.data
+    } else if (response.data) {
+      companyInfo.value = response.data
+    }
+  } catch (error) {
+    console.error('Error fetching company info:', error)
+  }
+}
+
+onMounted(() => {
+  loadCart()
+  fetchCompanyInfo()
+  window.addEventListener('cart-updated', loadCart)
+})
 </script>
 
 <style scoped>
+.cart-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f5f5;
+}
 
-.loading,
+.checkout-steps {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0.4;
+}
+
+.step.active {
+  opacity: 1;
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #000;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.step.active .step-number {
+  background: var(--primary-color, #FF9F43);
+  color: #000;
+}
+
+.step-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.cart-table-wrapper {
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.cart-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cart-table thead th {
+  text-align: left;
+  padding: 1rem;
+  border-bottom: 2px solid #e0e0e0;
+  font-weight: 600;
+  color: #333;
+}
+
+.cart-row {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.cart-row:last-child {
+  border-bottom: none;
+}
+
+.product-cell {
+  padding: 1.5rem 1rem;
+}
+
+.product-info {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.product-img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.product-details h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.product-meta {
+  margin: 0.25rem 0;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.quantity-cell {
+  padding: 1.5rem 1rem;
+}
+
+.quantity-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 140px;
+}
+
+.qty-btn {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  width: 35px;
+  height: 35px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.qty-btn:hover {
+  background: var(--primary-color, #FF9F43);
+  color: white;
+  border-color: var(--primary-color, #FF9F43);
+}
+
+.qty-input {
+  width: 60px;
+  text-align: center;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.qty-input:focus {
+  outline: none;
+  border-color: var(--primary-color, #FF9F43);
+}
+
+.price-cell {
+  padding: 1.5rem 1rem;
+  text-align: left;
+}
+
+.price {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #000;
+}
+
+.remove-cell {
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.btn-remove {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 1.5rem;
+  padding: 0.5rem;
+  transition: color 0.2s;
+}
+
+.btn-remove:hover {
+  color: #dc2626;
+}
+
 .empty-cart {
   text-align: center;
   padding: 4rem 2rem;
-  background: white;
-  border-radius: 12px;
+  color: #999;
 }
 
 .empty-cart i {
-  font-size: 4rem;
-  color: #ccc;
+  font-size: 5rem;
   margin-bottom: 1rem;
 }
 
-.empty-cart h2 {
-  color: #666;
-  margin-bottom: 0.5rem;
-}
-
 .empty-cart p {
-  color: #999;
+  font-size: 1.2rem;
   margin-bottom: 2rem;
 }
 
-.btn-shop {
+.btn-continue-shopping {
   display: inline-block;
   padding: 1rem 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--primary-color, #FF9F43);
   color: white;
   text-decoration: none;
   border-radius: 8px;
@@ -266,232 +417,129 @@ export default {
   transition: all 0.3s;
 }
 
-.btn-shop:hover {
+.btn-continue-shopping:hover {
+  background: var(--primary-dark, #e68a2e);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-.cart-content {
-  display: grid;
-  grid-template-columns: 1fr 350px;
-  gap: 2rem;
-}
-
-.cart-items {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.cart-item {
+.summary-card {
   background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  display: grid;
-  grid-template-columns: 100px 1fr auto auto auto;
-  gap: 1.5rem;
-  align-items: center;
-}
-
-.item-image {
-  width: 100px;
-  height: 100px;
   border-radius: 8px;
-  overflow: hidden;
-  background: #f5f5f5;
-}
-
-.item-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.item-info h3 {
-  margin: 0 0 0.5rem 0;
-  color: #333;
-  font-size: 1.1rem;
-}
-
-.item-code {
-  color: #999;
-  font-size: 0.9rem;
-  margin: 0 0 0.5rem 0;
-}
-
-.item-price {
-  color: #667eea;
-  font-weight: bold;
-  font-size: 1.1rem;
-  margin: 0;
-}
-
-.item-tax {
-  color: #999;
-  font-size: 0.8rem;
-  margin: 0;
-}
-
-.item-quantity {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.item-quantity button {
-  width: 32px;
-  height: 32px;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.item-quantity button:hover {
-  background: #667eea;
-  color: white;
-  border-color: #667eea;
-}
-
-.item-quantity input {
-  width: 60px;
-  height: 32px;
-  text-align: center;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-weight: 500;
-}
-
-.item-total {
-  text-align: right;
-}
-
-.total-label {
-  color: #999;
-  font-size: 0.85rem;
-  margin: 0 0 0.25rem 0;
-}
-
-.total-amount {
-  color: #333;
-  font-weight: bold;
-  font-size: 1.25rem;
-  margin: 0;
-}
-
-.btn-remove {
-  width: 40px;
-  height: 40px;
-  border: none;
-  background: #ff4444;
-  color: white;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.btn-remove:hover {
-  background: #cc0000;
-  transform: scale(1.1);
-}
-
-.cart-summary {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  height: fit-content;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
   position: sticky;
-  top: 2rem;
+  top: 100px;
 }
 
-.cart-summary h2 {
-  margin: 0 0 1.5rem 0;
+.summary-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
   color: #333;
-  font-size: 1.5rem;
+}
+
+.promo-input-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.promo-input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.promo-input:focus {
+  outline: none;
+  border-color: var(--primary-color, #FF9F43);
+}
+
+.btn-apply {
+  padding: 0.75rem 1.5rem;
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-apply:hover {
+  background: #e0e0e0;
+}
+
+.summary-totals {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .summary-row {
   display: flex;
   justify-content: space-between;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid #f0f0f0;
-  color: #666;
+  margin-bottom: 1rem;
+  font-size: 1rem;
 }
 
-.summary-total {
-  font-size: 1.25rem;
-  font-weight: bold;
-  color: #333;
-  border-bottom: none;
-  margin-top: 1rem;
+.total-row {
+  font-size: 1.2rem;
+  font-weight: 700;
   padding-top: 1rem;
-  border-top: 2px solid #e0e0e0;
+  border-top: 1px solid #e0e0e0;
 }
 
-.btn-checkout {
+.amount {
+  font-weight: 700;
+  color: #000;
+}
+
+.btn-checkout-full {
   width: 100%;
   padding: 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #000;
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.3s;
-  margin-top: 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
 }
 
-.btn-checkout:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+.btn-checkout-full:hover:not(:disabled) {
+  background: #333;
 }
 
-.btn-clear {
-  width: 100%;
-  padding: 0.75rem;
-  background: white;
-  color: #ff4444;
-  border: 1px solid #ff4444;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-  margin-top: 0.5rem;
+.btn-checkout-full:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.btn-clear:hover {
-  background: #ff4444;
-  color: white;
-}
-
-@media (max-width: 968px) {
-  .cart-content {
-    grid-template-columns: 1fr;
-  }
-
-  .cart-summary {
-    position: static;
-  }
-
-  .cart-item {
-    grid-template-columns: 80px 1fr;
+@media (max-width: 768px) {
+  .checkout-steps {
+    flex-wrap: wrap;
     gap: 1rem;
   }
 
-  .item-quantity,
-  .item-total {
-    grid-column: 2;
+  .step-label {
+    font-size: 0.7rem;
   }
 
-  .btn-remove {
-    grid-column: 2;
-    justify-self: end;
+  .cart-table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .product-info {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .summary-card {
+    position: static;
   }
 }
 </style>

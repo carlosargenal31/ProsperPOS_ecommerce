@@ -1,36 +1,7 @@
 <template>
   <div class="shop-catalog">
     <!-- Navigation Bar -->
-    <nav class="shop-navbar">
-      <div class="container-fluid px-4">
-        <div class="navbar-content">
-          <div class="navbar-brand">
-            <router-link to="/shop/home" class="brand-link">
-              <h2 class="brand-title">PROSPERPOS</h2>
-              <p class="brand-subtitle">Sueña, Vende y Crece</p>
-            </router-link>
-          </div>
-
-          <div class="navbar-menu">
-            <router-link to="/shop/home" class="nav-link">Inicio</router-link>
-            <router-link to="/shop/catalog" class="nav-link active">Productos</router-link>
-            <a href="#" class="nav-link">Ambientes</a>
-            <a href="#" class="nav-link">Accesorios</a>
-            <a href="#" class="nav-link">Contacto</a>
-          </div>
-
-          <div class="navbar-actions">
-            <router-link to="/shop/cart" class="btn btn-cart">
-              <i class="ti ti-shopping-cart"></i>
-              <span v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</span>
-            </router-link>
-            <router-link to="/shop/login" class="btn btn-login">
-              <i class="ti ti-user"></i>
-            </router-link>
-          </div>
-        </div>
-      </div>
-    </nav>
+    <ShopHeader />
 
     <!-- Breadcrumb -->
     <div class="breadcrumb-section">
@@ -85,7 +56,7 @@
                       id="category-all"
                       :value="null"
                       v-model="selectedCategory"
-                      @change="loadProducts"
+                      @change="handleCategoryChange"
                     />
                     <label for="category-all">Todos</label>
                   </div>
@@ -99,9 +70,43 @@
                       :id="`category-${category.id}`"
                       :value="category.id"
                       v-model="selectedCategory"
-                      @change="loadProducts"
+                      @change="handleCategoryChange"
                     />
                     <label :for="`category-${category.id}`">{{ category.name }}</label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Subcategory Filter -->
+              <div class="filter-group" v-if="filteredSubcategories.length > 0">
+                <button class="filter-toggle" @click="toggleFilter('subcategory')">
+                  <span>Subcategoría</span>
+                  <i class="ti" :class="filterStates.subcategory ? 'ti-chevron-up' : 'ti-chevron-down'"></i>
+                </button>
+                <div v-show="filterStates.subcategory" class="filter-options">
+                  <div class="filter-option">
+                    <input
+                      type="radio"
+                      id="subcategory-all"
+                      :value="null"
+                      v-model="selectedSubcategory"
+                      @change="loadProducts"
+                    />
+                    <label for="subcategory-all">Todos</label>
+                  </div>
+                  <div
+                    v-for="subcategory in filteredSubcategories"
+                    :key="subcategory.id"
+                    class="filter-option"
+                  >
+                    <input
+                      type="radio"
+                      :id="`subcategory-${subcategory.id}`"
+                      :value="subcategory.id"
+                      v-model="selectedSubcategory"
+                      @change="loadProducts"
+                    />
+                    <label :for="`subcategory-${subcategory.id}`">{{ subcategory.name }}</label>
                   </div>
                 </div>
               </div>
@@ -245,24 +250,6 @@
               </div>
             </div>
 
-            <!-- Catalog Tabs -->
-            <div class="catalog-tabs">
-              <button
-                @click="switchView('porcelain')"
-                class="catalog-tab"
-                :class="{ active: currentView === 'porcelain' }"
-              >
-                Catálogo Porcelanato
-              </button>
-              <button
-                @click="switchView('ceramic')"
-                class="catalog-tab"
-                :class="{ active: currentView === 'ceramic' }"
-              >
-                Catálogo Cerámica
-              </button>
-            </div>
-
             <!-- Loading State -->
             <div v-if="loading" class="loading-state">
               <div class="spinner-border text-primary" role="status">
@@ -303,6 +290,17 @@
                         Vista Rápida
                       </button>
                     </div>
+                    <button
+                      v-if="isLoggedIn"
+                      @click.prevent="toggleFavorite(product)"
+                      class="btn-favorite"
+                      :class="{ active: product.isFavorite }"
+                      :title="product.isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+                    >
+                      <svg class="heart-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                      </svg>
+                    </button>
                     <span v-if="product.stock_available <= 0" class="badge-out-of-stock">
                       Agotado
                     </span>
@@ -368,28 +366,66 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal de Producto Agregado -->
+    <div v-if="showAddedToCartModal" class="modal-overlay" @click="closeAddedToCartModal">
+      <div class="cart-success-modal" @click.stop>
+        <div class="cart-modal-content">
+          <div class="success-icon-cart">
+            <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="9" cy="21" r="1"></circle>
+              <circle cx="20" cy="21" r="1"></circle>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
+          </div>
+          <h2>¡Producto Agregado!</h2>
+          <p class="cart-message">
+            El producto ha sido agregado a tu carrito exitosamente.
+          </p>
+          <div class="modal-buttons">
+            <button @click="goToCart" class="btn-cart">
+              Ver Carrito
+            </button>
+            <button @click="closeAddedToCartModal" class="btn-continue">
+              Seguir Comprando
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { productsService, cartService } from '@/api/ecommerce'
+import { productsService, cartService, companyService } from '@/api/ecommerce'
+import ShopHeader from '@/components/ShopHeader.vue'
+import axios from 'axios'
 
 export default {
   name: 'ShopCatalog',
+  components: {
+    ShopHeader
+  },
   setup() {
     const router = useRouter()
     const route = useRoute()
 
     const products = ref([])
     const categories = ref([])
+    const subcategories = ref([])
     const pagination = ref(null)
     const loading = ref(false)
     const cartCount = ref(0)
+    const companyInfo = ref(null)
+    const isLoggedIn = ref(false)
+    const showAddedToCartModal = ref(false)
 
     const searchQuery = ref('')
     const selectedCategory = ref(null)
+    const selectedSubcategory = ref(null)
     const selectedColor = ref(null)
     const selectedCharacteristics = ref([])
     const selectedSimulation = ref(null)
@@ -399,6 +435,7 @@ export default {
 
     const filterStates = reactive({
       category: true,
+      subcategory: true,
       color: true,
       characteristics: true,
       simulation: true
@@ -419,9 +456,17 @@ export default {
     const hasActiveFilters = computed(() => {
       return searchQuery.value ||
         selectedCategory.value ||
+        selectedSubcategory.value ||
         selectedColor.value ||
         selectedCharacteristics.value.length > 0 ||
         selectedSimulation.value
+    })
+
+    const filteredSubcategories = computed(() => {
+      if (!selectedCategory.value) {
+        return subcategories.value
+      }
+      return subcategories.value.filter(sub => sub.category_id === selectedCategory.value)
     })
 
     const paginationPages = computed(() => {
@@ -458,21 +503,45 @@ export default {
     const loadProducts = async () => {
       try {
         loading.value = true
-        const response = await productsService.getCatalog({
+        const params = {
           search: searchQuery.value,
-          category_id: selectedCategory.value,
-          color: selectedColor.value,
-          characteristics: selectedCharacteristics.value,
-          simulation: selectedSimulation.value,
           sort: sortBy.value,
           page: currentPage.value,
           limit: 24,
           view: currentView.value
-        })
+        }
+
+        // Add filters only if they have values
+        if (selectedCategory.value) {
+          params.category_id = selectedCategory.value
+        }
+        if (selectedSubcategory.value) {
+          params.subcategory_id = selectedSubcategory.value
+        }
+        if (selectedColor.value) {
+          params.color = selectedColor.value
+        }
+        if (selectedCharacteristics.value.length > 0) {
+          params.characteristics = selectedCharacteristics.value
+        }
+        if (selectedSimulation.value) {
+          params.simulation = selectedSimulation.value
+        }
+
+        const response = await productsService.getCatalog(params)
 
         if (response.success) {
-          products.value = response.data.products || []
+          // Inicializar cada producto con isFavorite = false
+          products.value = (response.data.products || []).map(product => ({
+            ...product,
+            isFavorite: false
+          }))
           pagination.value = response.data.pagination
+
+          // Cargar estado de favoritos si está logueado
+          if (isLoggedIn.value) {
+            await loadFavoritesStatus()
+          }
         }
       } catch (error) {
         console.error('Error loading products:', error)
@@ -492,12 +561,34 @@ export default {
       }
     }
 
+    const loadSubcategories = async () => {
+      try {
+        const response = await productsService.getSubcategories()
+        if (response.success) {
+          subcategories.value = response.data || []
+        }
+      } catch (error) {
+        console.error('Error loading subcategories:', error)
+      }
+    }
+
     const loadCartCount = async () => {
       try {
         const cart = JSON.parse(localStorage.getItem('ecommerce_cart') || '[]')
         cartCount.value = cart.reduce((sum, item) => sum + item.quantity, 0)
       } catch (error) {
         cartCount.value = 0
+      }
+    }
+
+    const loadCompanyInfo = async () => {
+      try {
+        const response = await companyService.getDefaultCompany()
+        if (response.success && response.data) {
+          companyInfo.value = response.data
+        }
+      } catch (error) {
+        console.error('Error loading company info:', error)
       }
     }
 
@@ -523,9 +614,16 @@ export default {
     const clearFilters = () => {
       searchQuery.value = ''
       selectedCategory.value = null
+      selectedSubcategory.value = null
       selectedColor.value = null
       selectedCharacteristics.value = []
       selectedSimulation.value = null
+      currentPage.value = 1
+      loadProducts()
+    }
+
+    const handleCategoryChange = () => {
+      selectedSubcategory.value = null
       currentPage.value = 1
       loadProducts()
     }
@@ -544,6 +642,14 @@ export default {
     }
 
     const addToCart = async (product) => {
+      // Verificar si el usuario está autenticado
+      const token = localStorage.getItem('ecommerce_token')
+      if (!token) {
+        // Redirigir al login si no está autenticado
+        router.push('/login')
+        return
+      }
+
       try {
         const cart = JSON.parse(localStorage.getItem('ecommerce_cart') || '[]')
         const existingItemIndex = cart.findIndex(item => item.product_id === product.id)
@@ -553,9 +659,12 @@ export default {
         } else {
           cart.push({
             product_id: product.id,
-            product_code: product.code,
-            product_name: product.name,
-            product_image: product.image,
+            code: product.code,
+            name: product.name,
+            image: product.image,
+            category: product.category_name || '',
+            subcategory: product.subcategory_name || '',
+            brand: product.brand_name || '',
             price: product.sale_price,
             quantity: 1,
             unit: product.unit,
@@ -565,11 +674,81 @@ export default {
 
         localStorage.setItem('ecommerce_cart', JSON.stringify(cart))
         cartCount.value++
+        window.dispatchEvent(new Event('cart-updated'))
 
-        alert('Producto agregado al carrito')
+        // Mostrar modal en lugar de alert
+        showAddedToCartModal.value = true
       } catch (error) {
         console.error('Error adding to cart:', error)
         alert('Error al agregar el producto al carrito')
+      }
+    }
+
+    // Cerrar modal y continuar comprando
+    const closeAddedToCartModal = () => {
+      showAddedToCartModal.value = false
+    }
+
+    // Ir al carrito
+    const goToCart = () => {
+      showAddedToCartModal.value = false
+      router.push('/checkout')
+    }
+
+    const toggleFavorite = async (product) => {
+      try {
+        const token = localStorage.getItem('ecommerce_token')
+        if (!token) {
+          router.push('/login')
+          return
+        }
+
+        if (product.isFavorite) {
+          // Eliminar de favoritos
+          await axios.delete(
+            `http://localhost:3000/api/v1/ecommerce/favorites/${product.id}`,
+            {
+              headers: { Authorization: `Bearer ${token}` }
+            }
+          )
+          product.isFavorite = false
+        } else {
+          // Agregar a favoritos
+          await axios.post(
+            'http://localhost:3000/api/v1/ecommerce/favorites',
+            { product_id: product.id },
+            {
+              headers: { Authorization: `Bearer ${token}` }
+            }
+          )
+          product.isFavorite = true
+        }
+      } catch (error) {
+        console.error('Error toggling favorite:', error)
+        alert('Error al actualizar favoritos')
+      }
+    }
+
+    const loadFavoritesStatus = async () => {
+      try {
+        const token = localStorage.getItem('ecommerce_token')
+        if (!token) return
+
+        const response = await axios.get(
+          'http://localhost:3000/api/v1/ecommerce/favorites',
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        )
+
+        if (response.data.success) {
+          const favoriteIds = response.data.favorites.map(f => f.id)
+          products.value.forEach(product => {
+            product.isFavorite = favoriteIds.includes(product.id)
+          })
+        }
+      } catch (error) {
+        console.error('Error loading favorites:', error)
       }
     }
 
@@ -578,31 +757,54 @@ export default {
     }
 
     const getProductImage = (product) => {
+      // If product has image_url (from Google Cloud Storage), use it directly
+      if (product.image_url) {
+        return product.image_url
+      }
+      // If product has image path (local), construct the full URL
       if (product.image) {
-        return `${import.meta.env.VITE_UPLOAD_URL || 'http://localhost:3000/uploads'}/products/${product.image}`
+        // Check if the image path already includes the domain
+        if (product.image.startsWith('http')) {
+          return product.image
+        }
+        // Otherwise, construct the URL from the API base
+        const baseUrl = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'
+        return `${baseUrl}${product.image}`
       }
       return '/placeholder-product.svg'
     }
 
     onMounted(() => {
-      loadProducts()
-      loadCategories()
-      loadCartCount()
+      // Verificar si el usuario está logueado
+      const token = localStorage.getItem('ecommerce_token')
+      isLoggedIn.value = !!token
 
       // Load filters from URL query params
       if (route.query.category) {
         selectedCategory.value = parseInt(route.query.category)
       }
+      if (route.query.search) {
+        searchQuery.value = route.query.search
+      }
+
+      loadProducts()
+      loadCategories()
+      loadSubcategories()
+      loadCartCount()
+      loadCompanyInfo()
     })
 
     return {
       products,
       categories,
+      subcategories,
       pagination,
       loading,
       cartCount,
+      companyInfo,
       searchQuery,
       selectedCategory,
+      selectedSubcategory,
       selectedColor,
       selectedCharacteristics,
       selectedSimulation,
@@ -611,17 +813,24 @@ export default {
       filterStates,
       colors,
       hasActiveFilters,
+      filteredSubcategories,
       paginationPages,
+      isLoggedIn,
+      showAddedToCartModal,
       loadProducts,
       toggleFilter,
       selectColor,
       switchView,
       clearFilters,
+      handleCategoryChange,
       handleSearch,
       goToPage,
       addToCart,
+      toggleFavorite,
       formatPrice,
-      getProductImage
+      getProductImage,
+      closeAddedToCartModal,
+      goToCart
     }
   }
 }
@@ -629,126 +838,6 @@ export default {
 
 <style scoped>
 /* Navigation */
-.shop-navbar {
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
-  padding: 1rem 0;
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-
-.navbar-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 2rem;
-}
-
-.brand-link {
-  text-decoration: none;
-}
-
-.navbar-brand {
-  flex-shrink: 0;
-}
-
-.brand-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0;
-  color: var(--primary-color, #FF9F43);
-  letter-spacing: 1px;
-}
-
-.brand-subtitle {
-  font-size: 0.75rem;
-  margin: 0;
-  color: #666;
-  font-weight: 500;
-}
-
-.navbar-menu {
-  display: flex;
-  gap: 2rem;
-  flex: 1;
-  justify-content: center;
-}
-
-.nav-link {
-  color: #333;
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 0.95rem;
-  transition: color 0.3s;
-  padding: 0.5rem 0;
-  border-bottom: 2px solid transparent;
-}
-
-.nav-link:hover,
-.nav-link.active {
-  color: var(--primary-color, #FF9F43);
-  border-bottom-color: var(--primary-color, #FF9F43);
-}
-
-.navbar-actions {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-.btn-cart {
-  position: relative;
-  background: #f5f5f5;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-decoration: none;
-  color: #333;
-}
-
-.btn-cart:hover {
-  background: var(--primary-color, #FF9F43);
-  color: white;
-}
-
-.cart-badge {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  background: #FF6B6B;
-  color: white;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  font-weight: bold;
-}
-
-.btn-login {
-  background: var(--primary-color, #FF9F43);
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  font-size: 1.2rem;
-}
-
-.btn-login:hover {
-  background: var(--primary-dark, #e68a2e);
-}
-
 /* Breadcrumb */
 .breadcrumb-section {
   background: #f8f9fa;
@@ -1071,6 +1160,51 @@ export default {
   color: white;
 }
 
+.btn-favorite {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  border: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 2;
+  padding: 0;
+}
+
+.btn-favorite .heart-svg {
+  width: 20px;
+  height: 20px;
+  fill: #9ca3af;
+  transition: all 0.3s ease;
+}
+
+.btn-favorite:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.25);
+}
+
+.btn-favorite:hover .heart-svg {
+  fill: #ff4757;
+}
+
+.btn-favorite.active .heart-svg {
+  fill: #ff4757;
+  animation: heartBeat 0.3s ease;
+}
+
+@keyframes heartBeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
 .badge-out-of-stock {
   position: absolute;
   top: 10px;
@@ -1204,6 +1338,142 @@ export default {
   cursor: not-allowed;
 }
 
+/* Modal de Producto Agregado */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.cart-success-modal {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 450px;
+  width: 90%;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.cart-modal-content {
+  padding: 2.5rem 2rem;
+  text-align: center;
+}
+
+.success-icon-cart {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 90px;
+  height: 90px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 50%;
+  margin: 0 auto 1.5rem;
+  color: white;
+  animation: scaleIn 0.5s ease 0.2s both;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.cart-modal-content h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.cart-message {
+  font-size: 1rem;
+  color: #6b7280;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.btn-cart {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  padding: 0.875rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  flex: 1;
+  max-width: 180px;
+}
+
+.btn-cart:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.btn-continue {
+  background: white;
+  color: #6b7280;
+  border: 2px solid #e5e7eb;
+  padding: 0.875rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex: 1;
+  max-width: 180px;
+}
+
+.btn-continue:hover {
+  border-color: #10b981;
+  color: #10b981;
+  transform: translateY(-2px);
+}
+
+.btn-cart:active,
+.btn-continue:active {
+  transform: translateY(0);
+}
+
 /* Responsive */
 @media (max-width: 992px) {
   .filters-sidebar {
@@ -1219,6 +1489,17 @@ export default {
   .products-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .modal-buttons {
+    flex-direction: column;
+  }
+
+  .btn-cart,
+  .btn-continue {
+    max-width: 100%;
   }
 }
 </style>

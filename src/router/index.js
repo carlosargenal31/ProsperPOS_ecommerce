@@ -20,7 +20,7 @@ const router = createRouter({
     {
       path: '/product/:id',
       name: 'product-detail',
-      component: () => import('@/views/shop/product-detail-new.vue')
+      component: () => import('@/views/shop/product-detail.vue')
     },
     {
       path: '/cart',
@@ -33,9 +33,49 @@ const router = createRouter({
       component: () => import('@/views/shop/login.vue')
     },
     {
+      path: '/register',
+      name: 'register',
+      component: () => import('@/views/shop/register.vue')
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: () => import('@/views/shop/profile.vue')
+    },
+    {
       path: '/checkout',
       name: 'checkout',
       component: () => import('@/views/shop/checkout.vue')
+    },
+    {
+      path: '/orders',
+      name: 'orders',
+      component: () => import('@/views/shop/orders.vue')
+    },
+    {
+      path: '/store-location',
+      name: 'store-location',
+      component: () => import('@/views/shop/store-location.vue')
+    },
+    {
+      path: '/how-to-buy',
+      name: 'how-to-buy',
+      component: () => import('@/views/shop/how-to-buy.vue')
+    },
+    {
+      path: '/privacy-policy',
+      name: 'privacy-policy',
+      component: () => import('@/views/shop/privacy-policy.vue')
+    },
+    {
+      path: '/terms-and-conditions',
+      name: 'terms-and-conditions',
+      component: () => import('@/views/shop/terms-and-conditions.vue')
+    },
+    {
+      path: '/about-us',
+      name: 'about-us',
+      component: () => import('@/views/shop/about-us.vue')
     },
     // Redirects for backward compatibility
     {
@@ -57,6 +97,10 @@ const router = createRouter({
     {
       path: '/shop/login',
       redirect: '/login'
+    },
+    {
+      path: '/shop/checkout',
+      redirect: '/checkout'
     },
     {
       path: '/ecommerce/catalog',

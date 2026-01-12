@@ -87,7 +87,7 @@
               </router-link>
 
               <button
-                v-if="order.status === 'pending' || order.status === 'confirmed'"
+                v-if="order.status === 'pending' || order.status === 'pendiente'"
                 @click="cancelOrder(order)"
                 class="btn-cancel"
               >
@@ -151,10 +151,13 @@ export default {
     const getStatusLabel = (status) => {
       const labels = {
         pending: 'Pendiente',
+        pendiente: 'Pendiente',
         confirmed: 'Confirmado',
+        cotizado: 'Cotizado',
         processing: 'En Proceso',
         shipped: 'Enviado',
         delivered: 'Entregado',
+        cobrado: 'Cobrado/Pagado',
         cancelled: 'Cancelado'
       }
       return labels[status] || status
@@ -284,7 +287,8 @@ export default {
   text-transform: uppercase;
 }
 
-.status-pending {
+.status-pending,
+.status-pendiente {
   background: #fff3cd;
   color: #856404;
 }
@@ -292,6 +296,11 @@ export default {
 .status-confirmed {
   background: #d1ecf1;
   color: #0c5460;
+}
+
+.status-cotizado {
+  background: #cfe2ff;
+  color: #084298;
 }
 
 .status-processing {
@@ -304,7 +313,8 @@ export default {
   color: #155724;
 }
 
-.status-delivered {
+.status-delivered,
+.status-cobrado {
   background: #d4edda;
   color: #155724;
 }

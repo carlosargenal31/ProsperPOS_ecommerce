@@ -1,25 +1,20 @@
 <template>
-  <div class="product-detail-page">
-    <!-- Header -->
-    <header class="shop-header bg-white shadow-sm mb-4">
-      <div class="container-fluid px-4 py-3">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <router-link to="/ecommerce/catalog" class="btn btn-outline-secondary btn-sm">
-              <i class="ti ti-arrow-left me-2"></i>Volver al Catálogo
-            </router-link>
-          </div>
-          <h4 class="mb-0">Detalle del Producto</h4>
-          <div>
-            <router-link to="/ecommerce/cart" class="btn btn-primary">
-              <i class="ti ti-shopping-cart me-2"></i>
-              Carrito
-              <span v-if="cartCount > 0" class="badge bg-white text-primary ms-2">{{ cartCount }}</span>
-            </router-link>
-          </div>
-        </div>
+  <div class="product-detail-modern">
+    <!-- Navigation Bar -->
+    <ShopHeader />
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-section">
+      <div class="container-fluid px-4">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><router-link to="/shop/home">Inicio</router-link></li>
+            <li class="breadcrumb-item"><router-link to="/shop/catalog">Productos</router-link></li>
+            <li class="breadcrumb-item active">{{ product?.name || 'Detalle' }}</li>
+          </ol>
+        </nav>
       </div>
-    </header>
+    </div>
 
     <!-- Loading State -->
     <div v-if="loading" class="container py-5 text-center">
@@ -30,178 +25,205 @@
 
     <!-- Error State -->
     <div v-else-if="error" class="container py-5">
-      <div class="alert alert-danger">
-        <h5>Error al cargar el producto</h5>
+      <div class="error-card">
+        <div class="error-icon">
+          <i class="ti ti-alert-circle"></i>
+        </div>
+        <h3>Error al cargar el producto</h3>
         <p>{{ error }}</p>
-        <router-link to="/ecommerce/catalog" class="btn btn-primary">Volver al Catálogo</router-link>
+        <router-link to="/shop/catalog" class="btn-back-catalog">
+          Volver al Catálogo
+        </router-link>
       </div>
     </div>
 
     <!-- Product Content -->
-    <div v-else-if="product" class="container py-4">
-      <div class="row">
-        <!-- Left Column - Product Image -->
-        <div class="col-lg-5 mb-4">
-          <div class="product-image-container bg-white p-4 rounded shadow-sm sticky-top" style="top: 20px;">
-            <div class="main-image text-center">
-              <img
-                :src="getProductImage(product)"
-                :alt="product.name"
-                class="img-fluid rounded"
-                style="max-height: 500px; width: 100%; object-fit: contain;"
-              />
-            </div>
-          </div>
-        </div>
+    <div v-else-if="product" class="product-container">
+      <div class="container-fluid px-4 py-3">
+        <div class="row g-4">
+          <!-- Left Column - Product Image -->
+          <div class="col-lg-6">
+            <div class="product-image-wrapper">
+              <div class="product-badge" v-if="product.stock_available <= 0">
+                <span class="badge-out-of-stock">Agotado</span>
+              </div>
+              <div class="product-image-main">
+                <img
+                  :src="selectedImageUrl"
+                  :alt="product.name"
+                  class="product-img"
+                  @error="handleImageError"
+                />
 
-        <!-- Right Column - Product Info -->
-        <div class="col-lg-7">
-          <!-- Product Title & Basic Info -->
-          <div class="product-info bg-white p-4 rounded shadow-sm mb-3">
-            <div class="mb-3">
-              <span class="badge bg-info text-white mb-2">{{ product.category_name || 'Sin Categoría' }}</span>
-              <span v-if="product.brand_name" class="badge bg-secondary text-white mb-2 ms-2">{{ product.brand_name }}</span>
-            </div>
-
-            <h1 class="h3 mb-3">{{ product.name }}</h1>
-
-            <div class="mb-3">
-              <small class="text-muted">Código: {{ product.code }}</small>
-            </div>
-
-            <!-- Price Section -->
-            <div class="price-section mb-4 p-3 bg-light rounded">
-              <div class="row align-items-center">
-                <div class="col">
-                  <div class="mb-2">
-                    <span class="text-muted small">Precio:</span>
-                  </div>
-                  <h2 class="text-primary mb-0 fw-bold">
-                    L{{ formatPrice(product.sale_price) }}
-                  </h2>
-                  <small v-if="product.tax_rate > 0" class="text-muted">
-                    (Incluye {{ product.tax_rate }}% de impuesto)
-                  </small>
-                </div>
-                <div class="col-auto">
-                  <div class="text-end">
-                    <span v-if="product.stock_available > 0" class="badge bg-success">
-                      <i class="ti ti-check me-1"></i>Disponible
-                    </span>
-                    <span v-else class="badge bg-danger">
-                      <i class="ti ti-x me-1"></i>No Disponible
-                    </span>
-                    <div class="mt-2 small text-muted">
-                      Stock: {{ product.stock_available }} {{ product.unit }}
-                    </div>
-                  </div>
-                </div>
+                <!-- Navigation Arrows -->
+                <button
+                  v-if="allProductImages.length > 1"
+                  class="image-nav-btn prev-btn"
+                  @click="previousImage"
+                  :disabled="selectedImageIndex === 0"
+                >
+                  <i class="ti ti-chevron-left"></i>
+                </button>
+                <button
+                  v-if="allProductImages.length > 1"
+                  class="image-nav-btn next-btn"
+                  @click="nextImage"
+                  :disabled="selectedImageIndex === allProductImages.length - 1"
+                >
+                  <i class="ti ti-chevron-right"></i>
+                </button>
               </div>
             </div>
 
-            <!-- Product Details Table -->
-            <div class="product-details mb-4">
-              <h5 class="mb-3">Especificaciones</h5>
-              <table class="table table-borderless">
-                <tbody>
-                  <tr>
-                    <td class="text-muted" style="width: 40%;">Código del Producto:</td>
-                    <td class="fw-semibold">{{ product.code }}</td>
-                  </tr>
-                  <tr v-if="product.category_name">
-                    <td class="text-muted">Categoría:</td>
-                    <td class="fw-semibold">{{ product.category_name }}</td>
-                  </tr>
-                  <tr v-if="product.brand_name">
-                    <td class="text-muted">Marca:</td>
-                    <td class="fw-semibold">{{ product.brand_name }}</td>
-                  </tr>
-                  <tr>
-                    <td class="text-muted">Unidad de Medida:</td>
-                    <td class="fw-semibold">{{ product.unit }}</td>
-                  </tr>
-                  <tr>
-                    <td class="text-muted">Disponibilidad:</td>
-                    <td class="fw-semibold">{{ product.stock_available }} {{ product.unit }} en stock</td>
-                  </tr>
-                  <tr v-if="product.tax_rate">
-                    <td class="text-muted">Impuesto:</td>
-                    <td class="fw-semibold">{{ product.tax_rate }}%</td>
-                  </tr>
-                </tbody>
-              </table>
+            <!-- Thumbnail Gallery Below Main Image -->
+            <div v-if="allProductImages.length > 1" class="product-thumbnails-gallery mt-3">
+              <div
+                v-for="(imageUrl, index) in allProductImages"
+                :key="index"
+                class="thumbnail-item"
+                :class="{ active: selectedImageIndex === index }"
+                @click="selectImage(index)"
+              >
+                <img :src="imageUrl" :alt="`${product.name} ${index + 1}`" />
+              </div>
             </div>
 
-            <!-- Quantity & Add to Cart -->
-            <div class="purchase-section">
-              <div class="row g-3 mb-3">
-                <div class="col-5">
-                  <label class="form-label fw-semibold">Cantidad:</label>
-                  <div class="input-group">
-                    <button
-                      class="btn btn-outline-secondary"
-                      type="button"
-                      @click="decreaseQuantity"
-                      :disabled="quantity <= 1"
-                    >
-                      <i class="ti ti-minus"></i>
-                    </button>
-                    <input
-                      type="number"
-                      class="form-control text-center"
-                      v-model.number="quantity"
-                      min="1"
-                      :max="product.stock_available"
-                    />
-                    <button
-                      class="btn btn-outline-secondary"
-                      type="button"
-                      @click="increaseQuantity"
-                      :disabled="quantity >= product.stock_available"
-                    >
-                      <i class="ti ti-plus"></i>
-                    </button>
+            <!-- Description Below Image -->
+            <div v-if="product.description" class="product-description-box mt-3">
+              <h5 class="desc-title-sm">Descripción</h5>
+              <p class="desc-text-sm">{{ product.description }}</p>
+            </div>
+          </div>
+
+          <!-- Right Column - Product Info -->
+          <div class="col-lg-6">
+            <div class="product-info-wrapper">
+              <!-- Badges -->
+              <div class="product-badges mb-2">
+                <span class="category-badge">{{ product.category_name || 'Producto' }}</span>
+                <span v-if="product.brand_name" class="brand-badge">{{ product.brand_name }}</span>
+              </div>
+
+              <!-- Title -->
+              <h1 class="product-title-compact">{{ product.name }}</h1>
+
+              <!-- Code and Availability in one row -->
+              <div class="product-info-row mb-3">
+                <div class="info-col">
+                  <span class="meta-label-sm">Código:</span>
+                  <span class="meta-value-sm">{{ product.code }}</span>
+                </div>
+                <div class="info-col">
+                  <span class="availability-badge-sm" :class="product.stock_available > 0 ? 'available' : 'out-of-stock'">
+                    <i class="ti" :class="product.stock_available > 0 ? 'ti-check-circle' : 'ti-x-circle'"></i>
+                    {{ product.stock_available > 0 ? 'Disponible' : 'Agotado' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Price Section Compact -->
+              <div class="product-price-section-compact">
+                <div class="price-row">
+                  <span class="currency">L</span>
+                  <span class="amount">{{ formatPrice(product.sale_price) }}</span>
+                </div>
+                <div class="tax-info" v-if="product.tax_rate > 0">
+                  + {{ product.tax_rate }}% ISV
+                </div>
+              </div>
+
+              <!-- Specifications Compact - 2 columns -->
+              <div class="product-specifications-compact">
+                <h5 class="spec-title-sm">Especificaciones</h5>
+                <div class="spec-grid-2col">
+                  <div class="spec-item-compact" v-if="product.category_name">
+                    <span class="spec-label-sm">Categoría</span>
+                    <span class="spec-value-sm">{{ product.category_name }}</span>
+                  </div>
+                  <div class="spec-item-compact" v-if="product.subcategory_name">
+                    <span class="spec-label-sm">Subcategoría</span>
+                    <span class="spec-value-sm">{{ product.subcategory_name }}</span>
+                  </div>
+                  <div class="spec-item-compact" v-if="product.brand_name">
+                    <span class="spec-label-sm">Marca</span>
+                    <span class="spec-value-sm">{{ product.brand_name }}</span>
+                  </div>
+                  <div class="spec-item-compact" v-if="product.unit">
+                    <span class="spec-label-sm">Unidad</span>
+                    <span class="spec-value-sm">{{ product.unit }}</span>
                   </div>
                 </div>
-                <div class="col-7">
-                  <label class="form-label fw-semibold">&nbsp;</label>
+              </div>
+
+              <!-- Quantity and Add to Cart - Horizontal -->
+              <div class="product-purchase-section-compact">
+                <div class="purchase-row">
+                  <div class="quantity-selector-compact">
+                    <label class="quantity-label-sm">Cantidad</label>
+                    <div class="quantity-controls-sm">
+                      <button
+                        class="qty-btn-sm"
+                        type="button"
+                        @click="decreaseQuantity"
+                        :disabled="quantity <= 1"
+                      >
+                        <i class="ti ti-minus"></i>
+                      </button>
+                      <input
+                        type="number"
+                        class="qty-input-sm"
+                        v-model.number="quantity"
+                        min="1"
+                        :max="product.stock_available"
+                        readonly
+                      />
+                      <button
+                        class="qty-btn-sm"
+                        type="button"
+                        @click="increaseQuantity"
+                        :disabled="quantity >= product.stock_available || product.stock_available <= 0"
+                      >
+                        <i class="ti ti-plus"></i>
+                      </button>
+                    </div>
+                  </div>
+
                   <button
-                    class="btn btn-primary btn-lg w-100"
+                    class="btn-add-to-cart-compact"
                     @click="addToCart"
                     :disabled="product.stock_available <= 0 || addingToCart"
                   >
-                    <i class="ti ti-shopping-cart-plus me-2"></i>
-                    {{ addingToCart ? 'Agregando...' : 'Agregar al Carrito' }}
+                    <i class="ti ti-shopping-cart"></i>
+                    {{ addingToCart ? 'Agregando...' : 'Agregar al carrito' }}
                   </button>
                 </div>
               </div>
 
               <!-- Success Message -->
-              <div v-if="addedToCart" class="alert alert-success mb-0">
-                <i class="ti ti-check me-2"></i>
-                Producto agregado al carrito exitosamente
+              <div v-if="addedToCart" class="alert-success-custom-sm mt-2">
+                <i class="ti ti-check-circle"></i>
+                Producto agregado exitosamente
               </div>
             </div>
-          </div>
-
-          <!-- Product Description -->
-          <div v-if="product.description" class="product-description bg-white p-4 rounded shadow-sm">
-            <h5 class="mb-3">Descripción del Producto</h5>
-            <p class="text-muted mb-0" style="white-space: pre-line;">{{ product.description }}</p>
           </div>
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
 <script>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
+import { productsService, companyService } from '@/api/ecommerce'
+import ShopHeader from '@/components/ShopHeader.vue'
 
 export default {
-  name: 'ProductDetail',
+  name: 'ProductDetailModern',
+  components: {
+    ShopHeader
+  },
   setup() {
     const route = useRoute()
     const router = useRouter()
@@ -213,36 +235,124 @@ export default {
     const addingToCart = ref(false)
     const addedToCart = ref(false)
     const cartCount = ref(0)
+    const companyInfo = ref(null)
+    const selectedImageIndex = ref(0)
 
     const productId = computed(() => route.params.id)
+
+    // Computed para obtener todas las imágenes (imagen principal + galería)
+    const allProductImages = computed(() => {
+      if (!product.value) return []
+
+      const images = []
+
+      // Agregar imagen principal primero
+      const mainImage = getProductImage(product.value)
+      images.push(mainImage)
+
+      // Agregar imágenes de galería si existen
+      if (product.value.gallery_images && product.value.gallery_images.length > 0) {
+        product.value.gallery_images.forEach(galleryImg => {
+          if (galleryImg.image_url) {
+            images.push(galleryImg.image_url)
+          }
+        })
+      }
+
+      return images
+    })
+
+    // Computed para la imagen seleccionada actualmente
+    const selectedImageUrl = computed(() => {
+      if (allProductImages.value.length === 0) {
+        return 'https://via.placeholder.com/500x500?text=Sin+Imagen'
+      }
+      return allProductImages.value[selectedImageIndex.value] || allProductImages.value[0]
+    })
+
+    // Función para seleccionar una imagen
+    const selectImage = (index) => {
+      selectedImageIndex.value = index
+    }
+
+    // Función para ir a la imagen anterior
+    const previousImage = () => {
+      if (selectedImageIndex.value > 0) {
+        selectedImageIndex.value--
+      }
+    }
+
+    // Función para ir a la siguiente imagen
+    const nextImage = () => {
+      if (selectedImageIndex.value < allProductImages.value.length - 1) {
+        selectedImageIndex.value++
+      }
+    }
 
     const fetchProduct = async () => {
       try {
         loading.value = true
         error.value = null
 
-        const response = await axios.get(`http://localhost:3000/api/v1/ecommerce/products/${productId.value}`)
+        const response = await productsService.getProductDetails(productId.value)
 
-        if (response.data && response.data.success && response.data.data) {
-          product.value = response.data.data
-        } else if (response.data && response.data.id) {
+        if (response.success && response.data) {
           product.value = response.data
+          console.log('Product loaded:', product.value)
         } else {
           error.value = 'Producto no encontrado'
         }
       } catch (err) {
         console.error('Error fetching product:', err)
-        error.value = err.response?.data?.message || err.response?.data?.error || 'Error al cargar el producto'
+        error.value = err.response?.data?.message || 'Error al obtener detalles del producto'
       } finally {
         loading.value = false
       }
     }
 
-    const getProductImage = (product) => {
-      if (product.image && product.image.trim() !== '') {
-        return `http://localhost:3000${product.image}`
+    const loadCompanyInfo = async () => {
+      try {
+        const response = await companyService.getDefaultCompany()
+        if (response.success && response.data) {
+          companyInfo.value = response.data
+        }
+      } catch (error) {
+        console.error('Error loading company info:', error)
       }
-      return '/placeholder-product.svg'
+    }
+
+    const getProductImage = (product) => {
+      // Prioridad 1: image_url (URL completa)
+      if (product.image_url) {
+        return product.image_url
+      }
+
+      // Prioridad 2: image field
+      if (product.image) {
+        // Si ya es una URL completa
+        if (product.image.startsWith('http://') || product.image.startsWith('https://')) {
+          return product.image
+        }
+
+        // Si es una ruta relativa, construir URL completa
+        const baseUrl = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'
+
+        // Si comienza con /, usar directamente
+        if (product.image.startsWith('/')) {
+          return `${baseUrl}${product.image}`
+        }
+
+        // Si no, agregar /uploads/
+        return `${baseUrl}/uploads/${product.image}`
+      }
+
+      // Placeholder por defecto
+      return 'https://via.placeholder.com/500x500?text=Sin+Imagen'
+    }
+
+    const handleImageError = (event) => {
+      console.error('Error loading image:', event)
+      event.target.src = 'https://via.placeholder.com/500x500?text=Sin+Imagen'
     }
 
     const formatPrice = (price) => {
@@ -262,53 +372,49 @@ export default {
     }
 
     const addToCart = async () => {
+      // Verificar si el usuario está autenticado
+      const token = localStorage.getItem('ecommerce_token')
+      if (!token) {
+        // Redirigir al login si no está autenticado
+        router.push('/login')
+        return
+      }
+
       try {
         addingToCart.value = true
         addedToCart.value = false
 
-        // Get cart from localStorage
         const cart = JSON.parse(localStorage.getItem('ecommerce_cart') || '[]')
-
-        // Check if product already exists in cart
         const existingItemIndex = cart.findIndex(item => item.product_id === product.value.id)
 
         if (existingItemIndex !== -1) {
-          // Update quantity
           cart[existingItemIndex].quantity += quantity.value
         } else {
-          // Add new item
           cart.push({
             product_id: product.value.id,
-            product_code: product.value.code,
-            product_name: product.value.name,
-            product_image: product.value.image,
+            code: product.value.code,
+            name: product.value.name,
+            image: product.value.image,
+            category: product.value.category_name || '',
+            subcategory: product.value.subcategory_name || '',
+            brand: product.value.brand_name || '',
             price: product.value.sale_price,
+            tax_rate: product.value.tax_rate || 0,
             quantity: quantity.value,
-            unit: product.value.unit,
-            tax_rate: product.value.tax_rate || 0
+            unit: product.value.unit || 'UND'
           })
         }
 
-        // Save to localStorage
         localStorage.setItem('ecommerce_cart', JSON.stringify(cart))
+        cartCount.value = cart.reduce((total, item) => total + item.quantity, 0)
+        window.dispatchEvent(new Event('cart-updated'))
 
-        // Update cart count
-        cartCount.value = cart.reduce((sum, item) => sum + item.quantity, 0)
-
-        // Show success message
         addedToCart.value = true
-
-        // Reset quantity
-        quantity.value = 1
-
-        // Hide message after 3 seconds
         setTimeout(() => {
           addedToCart.value = false
         }, 3000)
-
       } catch (err) {
         console.error('Error adding to cart:', err)
-        alert('Error al agregar al carrito')
       } finally {
         addingToCart.value = false
       }
@@ -316,11 +422,12 @@ export default {
 
     const loadCartCount = () => {
       const cart = JSON.parse(localStorage.getItem('ecommerce_cart') || '[]')
-      cartCount.value = cart.reduce((sum, item) => sum + item.quantity, 0)
+      cartCount.value = cart.reduce((total, item) => total + item.quantity, 0)
     }
 
     onMounted(() => {
       fetchProduct()
+      loadCompanyInfo()
       loadCartCount()
     })
 
@@ -332,60 +439,828 @@ export default {
       addingToCart,
       addedToCart,
       cartCount,
+      companyInfo,
+      selectedImageIndex,
+      allProductImages,
+      selectedImageUrl,
       getProductImage,
+      handleImageError,
       formatPrice,
       increaseQuantity,
       decreaseQuantity,
-      addToCart
+      addToCart,
+      selectImage,
+      previousImage,
+      nextImage
     }
   }
 }
 </script>
 
 <style scoped>
-.product-detail-page {
+.product-detail-modern {
   min-height: 100vh;
-  background-color: #f8f9fa;
+  background: #f8f9fa;
 }
 
-.shop-header {
-  position: sticky;
-  top: 0;
-  z-index: 1000;
+/* Navigation Bar (igual que home) */
+/* Breadcrumb */
+.breadcrumb-section {
+  background: white;
+  padding: 1rem 0;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.product-image-container {
-  border: 1px solid #e0e0e0;
+.breadcrumb {
+  margin: 0;
+  background: transparent;
+  padding: 0;
 }
 
-.main-image img {
-  transition: transform 0.3s ease;
+.breadcrumb-item a {
+  color: #64748b;
+  text-decoration: none;
 }
 
-.main-image img:hover {
-  transform: scale(1.05);
+.breadcrumb-item a:hover {
+  color: #1e40af;
 }
 
-.price-section {
-  border-left: 4px solid #0d6efd;
+.breadcrumb-item.active {
+  color: #1e40af;
+  font-weight: 500;
 }
 
-.input-group .form-control {
-  max-width: 80px;
+/* Product Container */
+.product-container {
+  background: white;
+  min-height: 60vh;
 }
 
-.table td {
+/* Product Image - Compact */
+.product-image-wrapper {
+  position: relative;
+  background: #f8f9fa;
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 1rem;
+}
+
+.product-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 10;
+}
+
+.badge-out-of-stock {
+  background: #ef4444;
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 15px;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.product-image-main {
+  position: relative;
+  width: 100%;
+  height: 350px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 6px;
+}
+
+.product-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Navigation Arrows */
+.image-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 5;
+  color: #1e293b;
+  font-size: 1.5rem;
+}
+
+.image-nav-btn:hover:not(:disabled) {
+  background: rgba(102, 126, 234, 0.95);
+  color: white;
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.image-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.prev-btn {
+  left: 10px;
+}
+
+.next-btn {
+  right: 10px;
+}
+
+/* Additional Info Below Image */
+.product-additional-info {
+  margin-top: 2rem;
+}
+
+.info-card {
+  background: #f0f9ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.info-item i {
+  font-size: 2rem;
+  color: #1e40af;
+  flex-shrink: 0;
+}
+
+.info-item h6 {
+  margin: 0;
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 1rem;
+}
+
+.info-item p {
+  margin: 0.25rem 0 0 0;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+/* Product Info */
+.product-info-wrapper {
+  padding: 0 1rem;
+}
+
+.product-badges {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.category-badge, .brand-badge {
+  background: #1e40af;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.brand-badge {
+  background: #64748b;
+}
+
+.product-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 1rem 0;
+  line-height: 1.2;
+}
+
+.product-meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.meta-label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.meta-value {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+/* Availability */
+.availability-section {
+  margin: 1.5rem 0;
+}
+
+.availability-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.availability-badge.available {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.availability-badge.out-of-stock {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Price Section */
+.product-price-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem;
+  border-radius: 12px;
+  margin: 2rem 0;
+}
+
+.price-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: white;
+}
+
+.currency {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.amount {
+  font-size: 3rem;
+  font-weight: 700;
+}
+
+.price-tax {
+  color: rgba(255,255,255,0.9);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+/* Specifications */
+.product-specifications {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin: 2rem 0;
+}
+
+.spec-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+.spec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.spec-item {
+  display: flex;
+  gap: 0.5rem;
   padding: 0.75rem 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.table tr:last-child td {
+.spec-item:last-child {
   border-bottom: none;
 }
 
-@media (max-width: 991px) {
-  .sticky-top {
-    position: relative !important;
+.spec-label {
+  color: #64748b;
+  font-weight: 500;
+  min-width: 150px;
+}
+
+.spec-value {
+  color: #1e293b;
+  font-weight: 600;
+  flex: 1;
+}
+
+/* Purchase Section */
+.product-purchase-section {
+  margin: 2rem 0;
+}
+
+.quantity-selector {
+  margin-bottom: 1rem;
+}
+
+.quantity-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #1e293b;
+}
+
+.quantity-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.qty-btn {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #1e40af;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.qty-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+  transform: scale(1.1);
+}
+
+.qty-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.qty-input {
+  width: 80px;
+  height: 40px;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.btn-add-to-cart {
+  width: 100%;
+  background: #f97316;
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1.125rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-add-to-cart:hover:not(:disabled) {
+  background: #ea580c;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(249, 115, 22, 0.3);
+}
+
+.btn-add-to-cart:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.alert-success-custom {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+  padding: 1rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 500;
+}
+
+/* Description */
+.product-description {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #e2e8f0;
+}
+
+.desc-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+.desc-text {
+  color: #475569;
+  line-height: 1.6;
+  font-size: 1rem;
+}
+
+/* Error State */
+.error-card {
+  background: white;
+  padding: 3rem;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.error-icon {
+  font-size: 4rem;
+  color: #ef4444;
+  margin-bottom: 1rem;
+}
+
+.btn-back-catalog {
+  display: inline-block;
+  background: #1e40af;
+  color: white;
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-top: 1rem;
+  transition: all 0.3s;
+}
+
+.btn-back-catalog:hover {
+  background: #1e3a8a;
+  transform: translateY(-2px);
+  color: white;
+}
+
+/* New Compact Styles */
+.product-description-box {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+}
+
+.desc-title-sm {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+}
+
+.desc-text-sm {
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.info-card-sm {
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1e40af;
+}
+
+.info-card-sm i {
+  font-size: 1.25rem;
+}
+
+.product-title-compact {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0.5rem 0;
+  line-height: 1.3;
+}
+
+.product-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.info-col {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.meta-label-sm {
+  color: #64748b;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.meta-value-sm {
+  color: #1e293b;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.availability-badge-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.availability-badge-sm.available {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.availability-badge-sm.out-of-stock {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.product-price-section-compact {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 1.25rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: white;
+}
+
+.tax-info {
+  color: rgba(255,255,255,0.9);
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.product-specifications-compact {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+  margin: 1rem 0;
+}
+
+.spec-title-sm {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 0.75rem;
+}
+
+.spec-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.spec-item-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.spec-label-sm {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.spec-value-sm {
+  color: #1e293b;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.product-purchase-section-compact {
+  margin: 1.25rem 0;
+}
+
+.purchase-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.quantity-selector-compact {
+  flex-shrink: 0;
+}
+
+.quantity-label-sm {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #1e293b;
+}
+
+.quantity-controls-sm {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.qty-btn-sm {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #1e40af;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.qty-btn-sm:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.qty-btn-sm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.qty-input-sm {
+  width: 60px;
+  height: 36px;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.btn-add-to-cart-compact {
+  flex: 1;
+  background: #f97316;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-add-to-cart-compact:hover:not(:disabled) {
+  background: #ea580c;
+  transform: translateY(-1px);
+}
+
+.btn-add-to-cart-compact:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.alert-success-custom-sm {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+  padding: 0.75rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+/* Product Thumbnails Gallery */
+.product-thumbnails-gallery {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.thumbnail-item {
+  width: 80px;
+  height: 80px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: white;
+  padding: 4px;
+}
+
+.thumbnail-item:hover {
+  border-color: #667eea;
+  transform: scale(1.05);
+}
+
+.thumbnail-item.active {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.thumbnail-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .navbar-menu {
+    display: none;
+  }
+
+  .product-title-compact {
+    font-size: 1.25rem;
+  }
+
+  .amount {
+    font-size: 1.75rem;
+  }
+
+  .product-image-main {
+    height: 250px;
+  }
+
+  .spec-grid-2col {
+    grid-template-columns: 1fr;
+  }
+
+  .purchase-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .quantity-selector-compact {
+    width: 100%;
+  }
+
+  .product-thumbnails-gallery {
+    justify-content: center;
+  }
+
+  .thumbnail-item {
+    width: 70px;
+    height: 70px;
+  }
+
+  .image-nav-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 1.2rem;
+  }
+
+  .prev-btn {
+    left: 5px;
+  }
+
+  .next-btn {
+    right: 5px;
   }
 }
 </style>

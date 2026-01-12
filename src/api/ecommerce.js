@@ -124,8 +124,19 @@ export const productsService = {
     return response.data
   },
 
-  async getCategories() {
-    const response = await ecommerceApi.get('/categories')
+  async getCategories(visibleOnly = false) {
+    const response = await ecommerceApi.get('/categories', {
+      params: { visible_only: visibleOnly ? 'true' : 'false' }
+    })
+    return response.data
+  },
+
+  async getVisibleCategories() {
+    return this.getCategories(true)
+  },
+
+  async getSubcategories() {
+    const response = await ecommerceApi.get('/subcategories')
     return response.data
   },
 
@@ -209,9 +220,41 @@ export const ordersService = {
   }
 }
 
+// ===================================================================
+// BANNERS
+// ===================================================================
+
+// Crear instancia de axios para banners (endpoint público, sin /ecommerce)
+const publicApi = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+
+export const bannersService = {
+  async getBanners() {
+    const response = await publicApi.get('/banners/active')
+    return response.data
+  }
+}
+
+// ===================================================================
+// COMPANY (EMPRESA)
+// ===================================================================
+
+export const companyService = {
+  async getDefaultCompany() {
+    const response = await publicApi.get('/companies/public/default')
+    return response.data
+  }
+}
+
 export default {
   auth: authService,
   products: productsService,
   cart: cartService,
-  orders: ordersService
+  orders: ordersService,
+  banners: bannersService,
+  company: companyService
 }

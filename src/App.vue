@@ -1,12 +1,18 @@
 <template>
   <div id="app">
     <router-view />
+    <ShopFooter />
   </div>
 </template>
 
 <script>
+import ShopFooter from './components/ShopFooter.vue'
+
 export default {
-  name: 'App'
+  name: 'App',
+  components: {
+    ShopFooter
+  }
 }
 </script>
 
@@ -29,5 +35,7 @@ body {
 #app {
   width: 100%;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 </style>
