@@ -31,6 +31,14 @@
         </div>
       </div>
 
+      <!-- Carousel Arrow Navigation -->
+      <button class="carousel-arrow carousel-arrow-prev" @click="prevSlide">
+        <i class="ti ti-chevron-left"></i>
+      </button>
+      <button class="carousel-arrow carousel-arrow-next" @click="nextSlide">
+        <i class="ti ti-chevron-right"></i>
+      </button>
+
       <!-- Carousel Controls -->
       <div class="carousel-controls">
         <button
@@ -168,6 +176,12 @@ export default {
       currentSlide.value = (currentSlide.value + 1) % heroSlides.value.length
     }
 
+    const prevSlide = () => {
+      currentSlide.value = currentSlide.value === 0
+        ? heroSlides.value.length - 1
+        : currentSlide.value - 1
+    }
+
     const slidePrev = () => {
       if (productsTrack.value) {
         productsTrack.value.scrollBy({
@@ -188,7 +202,7 @@ export default {
 
     const loadCartCount = () => {
       const cart = JSON.parse(localStorage.getItem('ecommerce_cart') || '[]')
-      cartCount.value = cart.reduce((sum, item) => sum + item.quantity, 0)
+      cartCount.value = cart.length
     }
 
     const loadBanners = async () => {
@@ -296,6 +310,8 @@ export default {
       productsTrack,
       companyInfo,
       goToSlide,
+      nextSlide,
+      prevSlide,
       slidePrev,
       slideNext,
       getProductImage
@@ -425,6 +441,39 @@ export default {
 .carousel-dot.active {
   background: white;
   transform: scale(1.3);
+}
+
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.3s ease;
+  color: white;
+  font-size: 1.5rem;
+}
+
+.carousel-arrow:hover {
+  background: rgba(255, 255, 255, 0.8);
+  color: #333;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.carousel-arrow-prev {
+  left: 20px;
+}
+
+.carousel-arrow-next {
+  right: 20px;
 }
 
 /* Quality Banner */

@@ -318,7 +318,7 @@
 
                 <div class="product-footer">
                   <div class="product-price">
-                    <span class="price-amount">L{{ formatPrice(product.sale_price) }}</span>
+                    <span class="price-amount">L{{ formatPrice(product.sale_price) }} {{ product.unit || 'UNIDAD' }}</span>
                     <span v-if="product.tax_rate > 0" class="price-tax">
                       + {{ product.tax_rate }}% ISV
                     </span>
@@ -574,7 +574,11 @@ export default {
     }
 
     const formatPrice = (price) => {
-      return parseFloat(price).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+      if (!price && price !== 0) return '0.00'
+      return parseFloat(price).toLocaleString('es-HN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })
     }
 
     const getProductImage = (product) => {

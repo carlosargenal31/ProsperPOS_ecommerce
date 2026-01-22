@@ -143,6 +143,11 @@ export const productsService = {
   async getBrands() {
     const response = await ecommerceApi.get('/brands')
     return response.data
+  },
+
+  async getRelatedProducts(productId, params = {}) {
+    const response = await ecommerceApi.get(`/products/${productId}/related`, { params })
+    return response.data
   }
 }
 

@@ -1,6 +1,6 @@
 <template>
-  <div class="contact-modal" :class="{ active: isOpen }" @click="handleBackdropClick">
-    <div class="contact-modal-content" @click.stop>
+  <div class="contact-modal" :class="{ active: isOpen }">
+    <div class="contact-modal-content">
       <button class="close-btn" @click="closeModal" aria-label="Cerrar">
         <i class="ti ti-x"></i>
       </button>
@@ -47,31 +47,27 @@
 
         <div class="form-group">
           <select v-model="formData.reason" required class="form-select">
-            <option value="cotizacion" selected>Solicitud de cotización</option>
-            <option value="otra">Otra</option>
-            <option value="dudas">Resolución de dudas x BOC</option>
-            <option value="asesor">Seguimiento con Asesor</option>
-            <option value="cotizacion-no-recibida">Cotización no fue recibida/enviada</option>
-            <option value="ovp">Línea en OV pendiente de Facturación</option>
-            <option value="entrega-incorrecta">Entregas de producto incorrecto</option>
-            <option value="producto-danado">Reposición de producto dañado</option>
-            <option value="producto-calidad">Reposición de producto x calidad</option>
-            <option value="direccion-incorrecta">Entrega en dirección incorrecta</option>
-            <option value="orden-no-entregada">Orden no entregada</option>
-            <option value="factura-no-recibida">Factura - no fue recibida/enviada</option>
-            <option value="factura-incorrecta">Factura - incorrecta</option>
-            <option value="asesor-no-responde">Servicio - Asesor no responde</option>
-            <option value="asesor-no-seguimiento">Servicio - Asesor no da seguimiento</option>
-            <option value="tiempo-entrega">Servicio - Tiempo de entrega en bodega</option>
-            <option value="no-atienden-tienda">Servicio - No atienden en Tienda</option>
-            <option value="no-contestan-extension">Servicio - No contestan en Extensión</option>
-            <option value="horarios-tiendas">Horarios de Servicio de Tiendas</option>
-            <option value="confirmacion-pagos">Confirmación de pagos a proveedores</option>
-            <option value="horarios-pagos">Horarios para entrega de contraseñas de pago</option>
-            <option value="referencias">Referencias personales/comerciales</option>
-            <option value="recepcion-parcial">Recepción Parcial por el cliente</option>
-            <option value="producto-tarima">Reposición Producto Dañado En Tarima Sellada</option>
+            <option value="" disabled>Selecciona un tipo de consulta</option>
+            <option value="Solicitud de cotización">Solicitud de cotización</option>
+            <option value="Otra">Otra</option>
+            <option value="Seguimiento con Asesor">Seguimiento con Asesor</option>
+            <option value="Cotización no fue recibida/enviada">Cotización no fue recibida/enviada</option>
+            <option value="Factura - no fue recibida/enviada">Factura - no fue recibida/enviada</option>
+            <option value="Servicio - Asesor no responde">Servicio - Asesor no responde</option>
+            <option value="Servicio - Asesor no da seguimiento">Servicio - Asesor no da seguimiento</option>
+            <option value="Servicio - Tiempo de entrega en bodega">Servicio - Tiempo de entrega en bodega</option>
+            <option value="Servicio - No atienden en Tienda">Servicio - No atienden en Tienda</option>
           </select>
+        </div>
+
+        <div v-if="formData.reason === 'Otra'" class="form-group">
+          <input
+            v-model="formData.customTitle"
+            type="text"
+            placeholder="Especifica el tipo de consulta *"
+            required
+            class="form-input"
+          />
         </div>
 
         <div class="form-group">
@@ -79,6 +75,7 @@
             v-model="formData.message"
             placeholder="Mensaje"
             rows="5"
+            required
             class="form-textarea"
           ></textarea>
         </div>
@@ -97,6 +94,9 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import axios from 'axios'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1'
 
 const props = defineProps({
   isOpen: {
@@ -111,7 +111,8 @@ const formData = ref({
   firstName: '',
   lastName: '',
   email: '',
-  reason: 'cotizacion',
+  reason: '',
+  customTitle: '',
   message: ''
 })
 
@@ -124,7 +125,8 @@ const resetForm = () => {
     firstName: '',
     lastName: '',
     email: '',
-    reason: 'cotizacion',
+    reason: '',
+    customTitle: '',
     message: ''
   }
   submitMessage.value = ''
@@ -137,32 +139,47 @@ const closeModal = () => {
   setTimeout(resetForm, 300)
 }
 
-const handleBackdropClick = () => {
-  closeModal()
-}
-
 const handleSubmit = async () => {
   isSubmitting.value = true
   submitMessage.value = ''
   submitStatus.value = ''
 
   try {
-    // Aquí puedes agregar la lógica para enviar el formulario a tu backend
-    // Por ahora solo simulamos el envío
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // Si es "Otra", usar el título personalizado
+    const inquiryType = formData.value.reason === 'Otra'
+      ? formData.value.customTitle
+      : formData.value.reason
 
-    console.log('Form submitted:', formData.value)
+    // Enviar datos al backend
+    const response = await axios.post(`${API_URL}/opinions`, {
+      name: formData.value.firstName,
+      lastname: formData.value.lastName,
+      email: formData.value.email,
+      inquiry_type: inquiryType,
+      message: formData.value.message
+    })
 
-    submitMessage.value = 'Mensaje enviado exitosamente. Nos pondremos en contacto contigo pronto.'
-    submitStatus.value = 'success'
+    if (response.data.success) {
+      submitMessage.value = response.data.message || 'Mensaje enviado exitosamente. Nos pondremos en contacto contigo pronto.'
+      submitStatus.value = 'success'
 
-    // Close modal after successful submission
-    setTimeout(() => {
-      closeModal()
-    }, 2000)
+      // Close modal after successful submission
+      setTimeout(() => {
+        closeModal()
+      }, 2000)
+    } else {
+      submitMessage.value = response.data.message || 'Hubo un error al enviar el mensaje.'
+      submitStatus.value = 'error'
+    }
   } catch (error) {
     console.error('Error submitting form:', error)
-    submitMessage.value = 'Hubo un error al enviar el mensaje. Por favor, intenta nuevamente.'
+
+    if (error.response?.data?.message) {
+      submitMessage.value = error.response.data.message
+    } else {
+      submitMessage.value = 'Hubo un error al enviar el mensaje. Por favor, intenta nuevamente.'
+    }
+
     submitStatus.value = 'error'
   } finally {
     isSubmitting.value = false

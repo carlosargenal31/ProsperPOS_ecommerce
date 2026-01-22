@@ -13,6 +13,9 @@
           <router-link to="/catalog" class="nav-link" :class="{ active: currentRoute === 'catalog' }">
             Productos
           </router-link>
+          <router-link v-if="isLoggedIn" to="/profile?tab=orders" class="nav-link">
+            Mis Pedidos
+          </router-link>
           <router-link to="/store-location" class="nav-link" :class="{ active: currentRoute === 'store-location' }">
             Contacto
           </router-link>
@@ -71,8 +74,8 @@
                     <p class="product-brand">{{ product.brand || 'Sin marca' }}</p>
                     <h4 class="product-name">{{ product.name }}</h4>
                     <div class="product-pricing">
-                      <span v-if="product.discount > 0" class="original-price">Antes L {{ formatPrice(product.original_price) }} Unidad</span>
-                      <span class="current-price">L {{ formatPrice(product.price) }} Unidad</span>
+                      <span v-if="product.discount > 0" class="original-price">Antes L {{ formatPrice(product.original_price) }} {{ product.unit }}</span>
+                      <span class="current-price">L {{ formatPrice(product.price) }} {{ product.unit }}</span>
                     </div>
                   </div>
                 </div>
@@ -107,6 +110,28 @@
     </div>
   </nav>
 
+  <!-- Categories Navigation -->
+  <div class="categories-nav">
+    <div class="container-fluid px-4">
+      <div class="categories-content">
+        <router-link
+          v-for="category in categories"
+          :key="category.id"
+          :to="`/catalog?category=${category.id}`"
+          class="category-link"
+          :class="{ active: selectedCategoryId === category.id }"
+        >
+          <i class="ti ti-category-2"></i>
+          {{ category.name }}
+        </router-link>
+        <router-link to="/catalog" class="category-link category-link-all">
+          <i class="ti ti-apps"></i>
+          Ver todos
+        </router-link>
+      </div>
+    </div>
+  </div>
+
   <!-- Cart Sidebar -->
   <div class="cart-sidebar" :class="{ active: showCart }">
     <div class="cart-overlay" @click="toggleCart"></div>
@@ -130,7 +155,15 @@
             <p class="cart-item-info" v-if="item.unit">Unidad: {{ item.unit }}</p>
             <div class="cart-item-quantity">
               <button @click="updateQuantity(item, -1)" class="qty-btn">-</button>
-              <span>{{ item.quantity }}</span>
+              <input
+                type="number"
+                v-model.number="item.quantity"
+                @blur="validateItemQuantity(item)"
+                min="0.01"
+                step="0.01"
+                class="qty-input-modal"
+              />
+              <span class="unit-label">{{ item.unit || 'UNIDAD' }}</span>
               <button @click="updateQuantity(item, 1)" class="qty-btn">+</button>
             </div>
             <p class="cart-item-price">L {{ formatPrice(item.price * item.quantity) }}</p>
@@ -147,9 +180,19 @@
       </div>
 
       <div class="cart-footer" v-if="cartItems.length > 0">
-        <div class="cart-total">
-          <span>Total:</span>
-          <span class="total-amount">L {{ formatPrice(cartTotal) }}</span>
+        <div class="cart-totals-breakdown">
+          <div class="cart-total-row">
+            <span>Subtotal</span>
+            <span>L {{ formatPrice(cartSubtotal) }}</span>
+          </div>
+          <div class="cart-total-row">
+            <span>ISV (15%)</span>
+            <span>L {{ formatPrice(cartTax) }}</span>
+          </div>
+          <div class="cart-total-row cart-total-final">
+            <span>Total</span>
+            <span class="total-amount">L {{ formatPrice(cartTotal) }}</span>
+          </div>
         </div>
         <button @click="goToCheckout" class="btn-checkout">
           Finalizar Pedido
@@ -178,6 +221,7 @@ const showSearchResults = ref(false)
 const searchSuggestions = ref([])
 const searchProducts = ref([])
 const totalProducts = ref(0)
+const categories = ref([])
 let searchTimeout = null
 
 const currentRoute = computed(() => {
@@ -201,16 +245,27 @@ const customerName = computed(() => {
   return 'Usuario'
 })
 
+const selectedCategoryId = computed(() => {
+  return route.query.category ? parseInt(route.query.category) : null
+})
+
 const cartCount = computed(() => {
-  return cartItems.value.reduce((sum, item) => sum + item.quantity, 0)
+  return cartItems.value.length
+})
+
+// Prices are base prices WITHOUT tax - need to add 15%
+const cartSubtotal = computed(() => {
+  return cartItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+})
+
+const cartTax = computed(() => {
+  // Calculate 15% tax on subtotal
+  return cartSubtotal.value * 0.15
 })
 
 const cartTotal = computed(() => {
-  return cartItems.value.reduce((sum, item) => {
-    const itemTotal = item.price * item.quantity
-    const itemWithTax = itemTotal * (1 + (item.tax_rate || 0) / 100)
-    return sum + itemWithTax
-  }, 0)
+  // Total = Subtotal + Tax
+  return cartSubtotal.value + cartTax.value
 })
 
 const toggleCart = () => {
@@ -294,7 +349,8 @@ const performSearch = async () => {
           price: parseFloat(p.sale_price || 0),
           original_price: parseFloat(p.sale_price || 0),
           discount: 0,
-          image_url: p.image || null
+          image_url: p.image || null,
+          unit: p.unit || 'UNIDAD'
         }))
       } else {
         searchProducts.value = []
@@ -337,11 +393,23 @@ const viewAllProducts = () => {
 }
 
 const updateQuantity = (item, change) => {
-  const newQuantity = item.quantity + change
-  if (newQuantity > 0) {
+  const newQuantity = parseFloat((item.quantity + change).toFixed(2))
+  if (newQuantity >= 0.01) {
     item.quantity = newQuantity
     saveCart()
   }
+}
+
+const validateItemQuantity = (item) => {
+  let value = parseFloat(item.quantity)
+
+  if (isNaN(value) || value < 0.01) {
+    item.quantity = 0.01
+  } else {
+    item.quantity = parseFloat(value.toFixed(2))
+  }
+
+  saveCart()
 }
 
 const removeItem = (item) => {
@@ -368,7 +436,11 @@ const goToCart = () => {
 }
 
 const formatPrice = (price) => {
-  return parseFloat(price).toFixed(2)
+  if (!price && price !== 0) return '0.00'
+  return parseFloat(price).toLocaleString('es-HN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
 }
 
 const fetchCompanyInfo = async () => {
@@ -381,6 +453,19 @@ const fetchCompanyInfo = async () => {
     }
   } catch (error) {
     console.error('Error fetching company info:', error)
+  }
+}
+
+const fetchCategories = async () => {
+  try {
+    const response = await axios.get('http://localhost:3000/api/v1/ecommerce/categories', {
+      params: { visible_only: 'true' }
+    })
+    if (response.data && response.data.success) {
+      categories.value = response.data.data
+    }
+  } catch (error) {
+    console.error('Error fetching categories:', error)
   }
 }
 
@@ -412,6 +497,7 @@ const vClickOutside = {
 
 onMounted(() => {
   fetchCompanyInfo()
+  fetchCategories()
   loadCart()
 
   // Listen for cart updates
@@ -912,17 +998,44 @@ onMounted(() => {
 .qty-btn {
   background: #f5f5f5;
   border: 1px solid #e0e0e0;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border-radius: 4px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 1.1rem;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .qty-btn:hover {
   background: var(--primary-color, #FF9F43);
   color: white;
+  border-color: var(--primary-color, #FF9F43);
+}
+
+.qty-input-modal {
+  width: 60px;
+  height: 36px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0 0.25rem;
+}
+
+.cart-item-quantity .unit-label {
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.qty-input-modal:focus {
+  outline: none;
   border-color: var(--primary-color, #FF9F43);
 }
 
@@ -973,18 +1086,30 @@ onMounted(() => {
   background: #f9f9f9;
 }
 
-.cart-total {
+.cart-totals-breakdown {
+  margin-bottom: 1.5rem;
+}
+
+.cart-total-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+}
+
+.cart-total-row.cart-total-final {
+  padding-top: 0.75rem;
+  border-top: 2px solid #e0e0e0;
   font-size: 1.2rem;
   font-weight: 700;
+  margin-top: 0.5rem;
 }
 
 .total-amount {
   color: #000;
   font-size: 1.5rem;
+  font-weight: 700;
 }
 
 .btn-checkout {
@@ -1023,6 +1148,87 @@ onMounted(() => {
   color: #333;
 }
 
+/* Categories Navigation */
+.categories-nav {
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 0.75rem 0;
+  position: sticky;
+  top: 92px;
+  z-index: 999;
+}
+
+.categories-content {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #ccc transparent;
+}
+
+.categories-content::-webkit-scrollbar {
+  height: 6px;
+}
+
+.categories-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.categories-content::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.categories-content::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+.category-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  color: #333;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.3s;
+  border: 1px solid #e0e0e0;
+}
+
+.category-link:hover {
+  background: var(--primary-color, #FF9F43);
+  color: white;
+  border-color: var(--primary-color, #FF9F43);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(255, 159, 67, 0.3);
+}
+
+.category-link.active {
+  background: var(--primary-color, #FF9F43);
+  color: white;
+  border-color: var(--primary-color, #FF9F43);
+}
+
+.category-link-all {
+  background: var(--primary-color, #FF9F43);
+  color: white;
+  border-color: var(--primary-color, #FF9F43);
+  font-weight: 600;
+}
+
+.category-link-all:hover {
+  background: var(--primary-dark, #e68a2e);
+  border-color: var(--primary-dark, #e68a2e);
+}
+
+.category-link i {
+  font-size: 1.1rem;
+}
+
 @media (max-width: 768px) {
   .navbar-content {
     flex-wrap: wrap;
@@ -1049,6 +1255,16 @@ onMounted(() => {
   .cart-panel {
     width: 100%;
     max-width: 100%;
+  }
+
+  .categories-nav {
+    top: auto;
+    position: relative;
+  }
+
+  .category-link {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
   }
 }
 </style>

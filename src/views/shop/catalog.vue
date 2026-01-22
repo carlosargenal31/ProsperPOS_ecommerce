@@ -23,14 +23,15 @@
           <div class="col-lg-3">
             <div class="filters-sidebar">
               <div class="filter-header">
-                <h3>Filtrar por</h3>
+                <h3>Filtros</h3>
                 <button v-if="hasActiveFilters" @click="clearFilters" class="btn-clear">
-                  Limpiar filtros
+                  <i class="ti ti-x"></i>
+                  Limpiar
                 </button>
               </div>
 
               <!-- Search Filter -->
-              <div class="filter-group">
+              <div class="filter-group search-group">
                 <div class="search-box">
                   <i class="ti ti-search"></i>
                   <input
@@ -43,70 +44,101 @@
                 </div>
               </div>
 
-              <!-- Category Filter -->
+              <!-- Price Range Filter -->
               <div class="filter-group">
-                <button class="filter-toggle" @click="toggleFilter('category')">
-                  <span>Categoría</span>
-                  <i class="ti" :class="filterStates.category ? 'ti-chevron-up' : 'ti-chevron-down'"></i>
+                <button class="filter-toggle" @click="toggleFilter('price')">
+                  <span>Rango de Precio</span>
+                  <i class="ti" :class="filterStates.price ? 'ti-chevron-up' : 'ti-chevron-down'"></i>
                 </button>
-                <div v-show="filterStates.category" class="filter-options">
-                  <div class="filter-option">
-                    <input
-                      type="radio"
-                      id="category-all"
-                      :value="null"
-                      v-model="selectedCategory"
-                      @change="handleCategoryChange"
-                    />
-                    <label for="category-all">Todos</label>
+                <div v-show="filterStates.price" class="filter-options price-range-content">
+                  <div class="price-inputs">
+                    <div class="price-input-group">
+                      <label>Mínimo</label>
+                      <div class="input-with-currency">
+                        <span class="currency">L</span>
+                        <input
+                          type="number"
+                          v-model.number="priceMin"
+                          @change="applyPriceFilter"
+                          placeholder="0"
+                          min="0"
+                          class="form-control"
+                        />
+                      </div>
+                    </div>
+                    <span class="price-separator">-</span>
+                    <div class="price-input-group">
+                      <label>Máximo</label>
+                      <div class="input-with-currency">
+                        <span class="currency">L</span>
+                        <input
+                          type="number"
+                          v-model.number="priceMax"
+                          @change="applyPriceFilter"
+                          placeholder="10000"
+                          min="0"
+                          class="form-control"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div
-                    v-for="category in categories"
-                    :key="category.id"
-                    class="filter-option"
-                  >
-                    <input
-                      type="radio"
-                      :id="`category-${category.id}`"
-                      :value="category.id"
-                      v-model="selectedCategory"
-                      @change="handleCategoryChange"
-                    />
-                    <label :for="`category-${category.id}`">{{ category.name }}</label>
-                  </div>
+                  <button @click="applyPriceFilter" class="btn-apply-price">Aplicar</button>
                 </div>
               </div>
 
-              <!-- Subcategory Filter -->
-              <div class="filter-group" v-if="filteredSubcategories.length > 0">
-                <button class="filter-toggle" @click="toggleFilter('subcategory')">
-                  <span>Subcategoría</span>
-                  <i class="ti" :class="filterStates.subcategory ? 'ti-chevron-up' : 'ti-chevron-down'"></i>
+              <!-- Categories & Subcategories Combined -->
+              <div class="filter-group">
+                <button class="filter-toggle" @click="toggleFilter('categories')">
+                  <span>Categorías</span>
+                  <i class="ti" :class="filterStates.categories ? 'ti-chevron-up' : 'ti-chevron-down'"></i>
                 </button>
-                <div v-show="filterStates.subcategory" class="filter-options">
-                  <div class="filter-option">
-                    <input
-                      type="radio"
-                      id="subcategory-all"
-                      :value="null"
-                      v-model="selectedSubcategory"
-                      @change="loadProducts"
-                    />
-                    <label for="subcategory-all">Todos</label>
-                  </div>
+                <div v-show="filterStates.categories" class="filter-options categories-tree">
                   <div
-                    v-for="subcategory in filteredSubcategories"
-                    :key="subcategory.id"
-                    class="filter-option"
+                    v-for="category in categories"
+                    :key="category.id"
+                    class="category-item"
                   >
-                    <input
-                      type="radio"
-                      :id="`subcategory-${subcategory.id}`"
-                      :value="subcategory.id"
-                      v-model="selectedSubcategory"
-                      @change="loadProducts"
-                    />
-                    <label :for="`subcategory-${subcategory.id}`">{{ subcategory.name }}</label>
+                    <div class="category-checkbox">
+                      <input
+                        type="checkbox"
+                        :id="`category-${category.id}`"
+                        :value="category.id"
+                        v-model="selectedCategories"
+                        @change="loadProducts"
+                      />
+                      <label :for="`category-${category.id}`" class="category-label">
+                        {{ category.name }}
+                      </label>
+                      <button
+                        v-if="getCategorySubcategories(category.id).length > 0"
+                        @click="toggleCategory(category.id)"
+                        class="category-expand"
+                        type="button"
+                      >
+                        <i class="ti" :class="expandedCategories.includes(category.id) ? 'ti-chevron-up' : 'ti-chevron-down'"></i>
+                      </button>
+                    </div>
+
+                    <!-- Subcategories -->
+                    <div
+                      v-show="expandedCategories.includes(category.id)"
+                      class="subcategories-list"
+                    >
+                      <div
+                        v-for="subcategory in getCategorySubcategories(category.id)"
+                        :key="subcategory.id"
+                        class="filter-option subcategory-option"
+                      >
+                        <input
+                          type="checkbox"
+                          :id="`subcategory-${subcategory.id}`"
+                          :value="subcategory.id"
+                          v-model="selectedSubcategories"
+                          @change="loadProducts"
+                        />
+                        <label :for="`subcategory-${subcategory.id}`">{{ subcategory.name }}</label>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -120,104 +152,65 @@
                 <div v-show="filterStates.color" class="filter-options">
                   <div class="color-swatches">
                     <button
-                      v-for="color in colors"
-                      :key="color.name"
+                      v-for="color in availableColors"
+                      :key="color.value"
                       class="color-swatch"
-                      :class="{ active: selectedColor === color.name }"
+                      :class="{ active: selectedColors.includes(color.value) }"
                       :style="{ backgroundColor: color.hex }"
-                      :title="color.name"
-                      @click="selectColor(color.name)"
-                    ></button>
+                      :title="color.label"
+                      @click="toggleColor(color.value)"
+                      type="button"
+                    >
+                      <i v-if="selectedColors.includes(color.value)" class="ti ti-check"></i>
+                    </button>
                   </div>
                 </div>
               </div>
 
-              <!-- Characteristics Filter -->
+              <!-- Acabado Filter -->
               <div class="filter-group">
-                <button class="filter-toggle" @click="toggleFilter('characteristics')">
-                  <span>Características</span>
-                  <i class="ti" :class="filterStates.characteristics ? 'ti-chevron-up' : 'ti-chevron-down'"></i>
+                <button class="filter-toggle" @click="toggleFilter('finish')">
+                  <span>Acabado</span>
+                  <i class="ti" :class="filterStates.finish ? 'ti-chevron-up' : 'ti-chevron-down'"></i>
                 </button>
-                <div v-show="filterStates.characteristics" class="filter-options">
-                  <div class="filter-option">
+                <div v-show="filterStates.finish" class="filter-options">
+                  <div
+                    v-for="finish in availableFinishes"
+                    :key="finish.value"
+                    class="filter-option"
+                  >
                     <input
                       type="checkbox"
-                      id="char-1"
-                      value="ceramic"
-                      v-model="selectedCharacteristics"
+                      :id="`finish-${finish.value}`"
+                      :value="finish.value"
+                      v-model="selectedFinishes"
                       @change="loadProducts"
                     />
-                    <label for="char-1">Cerámica</label>
-                  </div>
-                  <div class="filter-option">
-                    <input
-                      type="checkbox"
-                      id="char-2"
-                      value="porcelain"
-                      v-model="selectedCharacteristics"
-                      @change="loadProducts"
-                    />
-                    <label for="char-2">Porcelanato</label>
-                  </div>
-                  <div class="filter-option">
-                    <input
-                      type="checkbox"
-                      id="char-3"
-                      value="wood"
-                      v-model="selectedCharacteristics"
-                      @change="loadProducts"
-                    />
-                    <label for="char-3">Madera</label>
+                    <label :for="`finish-${finish.value}`">{{ finish.label }}</label>
                   </div>
                 </div>
               </div>
 
-              <!-- Simulation Filter -->
+              <!-- Estilo Filter -->
               <div class="filter-group">
-                <button class="filter-toggle" @click="toggleFilter('simulation')">
-                  <span>Simulación</span>
-                  <i class="ti" :class="filterStates.simulation ? 'ti-chevron-up' : 'ti-chevron-down'"></i>
+                <button class="filter-toggle" @click="toggleFilter('style')">
+                  <span>Estilo</span>
+                  <i class="ti" :class="filterStates.style ? 'ti-chevron-up' : 'ti-chevron-down'"></i>
                 </button>
-                <div v-show="filterStates.simulation" class="filter-options">
-                  <div class="filter-option">
+                <div v-show="filterStates.style" class="filter-options">
+                  <div
+                    v-for="style in availableStyles"
+                    :key="style.value"
+                    class="filter-option"
+                  >
                     <input
-                      type="radio"
-                      id="sim-all"
-                      :value="null"
-                      v-model="selectedSimulation"
+                      type="checkbox"
+                      :id="`style-${style.value}`"
+                      :value="style.value"
+                      v-model="selectedStyles"
                       @change="loadProducts"
                     />
-                    <label for="sim-all">Todos</label>
-                  </div>
-                  <div class="filter-option">
-                    <input
-                      type="radio"
-                      id="sim-wood"
-                      value="wood"
-                      v-model="selectedSimulation"
-                      @change="loadProducts"
-                    />
-                    <label for="sim-wood">Madera</label>
-                  </div>
-                  <div class="filter-option">
-                    <input
-                      type="radio"
-                      id="sim-marble"
-                      value="marble"
-                      v-model="selectedSimulation"
-                      @change="loadProducts"
-                    />
-                    <label for="sim-marble">Mármol</label>
-                  </div>
-                  <div class="filter-option">
-                    <input
-                      type="radio"
-                      id="sim-stone"
-                      value="stone"
-                      v-model="selectedSimulation"
-                      @change="loadProducts"
-                    />
-                    <label for="sim-stone">Piedra</label>
+                    <label :for="`style-${style.value}`">{{ style.label }}</label>
                   </div>
                 </div>
               </div>
@@ -301,8 +294,11 @@
                         <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                       </svg>
                     </button>
-                    <span v-if="product.stock_available <= 0" class="badge-out-of-stock">
+                    <span v-if="!isProductAvailable(product)" class="badge-out-of-stock">
                       Agotado
+                    </span>
+                    <span v-if="product.has_offer" class="badge-offer">
+                      OFERTA
                     </span>
                   </div>
 
@@ -316,7 +312,16 @@
 
                 <div class="product-footer">
                   <div class="product-price">
-                    <span class="price-amount">L{{ formatPrice(product.sale_price) }}</span>
+                    <div v-if="product.has_offer" class="price-with-offer">
+                      <!-- Para ambos tipos de oferta condicional, mostrar precio normal -->
+                      <span class="price-amount">L{{ formatPrice(product.sale_price) }} {{ product.unit || 'UNIDAD' }}</span>
+                      <div v-if="getOfferCondition(product)" class="offer-condition">
+                        {{ getOfferCondition(product) }}
+                      </div>
+                    </div>
+                    <div v-else>
+                      <span class="price-amount">L{{ formatPrice(product.sale_price) }} {{ product.unit || 'UNIDAD' }}</span>
+                    </div>
                     <span v-if="product.tax_rate > 0" class="price-tax">
                       + {{ product.tax_rate }}% ISV
                     </span>
@@ -325,7 +330,7 @@
                   <button
                     @click="addToCart(product)"
                     class="btn-add-cart"
-                    :disabled="product.stock_available <= 0"
+                    :disabled="!isProductAvailable(product)"
                   >
                     <i class="ti ti-shopping-cart-plus"></i>
                   </button>
@@ -367,6 +372,44 @@
       </div>
     </div>
 
+    <!-- Modal de Seleccionar Cantidad -->
+    <div v-if="showQuantityModal" class="modal-overlay" @click="closeQuantityModal">
+      <div class="quantity-modal" @click.stop>
+        <div class="quantity-modal-content">
+          <button @click="closeQuantityModal" class="modal-close-btn">&times;</button>
+          <h2>Selecciona la cantidad</h2>
+          <div class="product-info-modal">
+            <img :src="selectedProduct?.image || '/placeholder-product.png'" :alt="selectedProduct?.name" class="product-img-modal" />
+            <div>
+              <h3>{{ selectedProduct?.name }}</h3>
+              <p class="product-price-modal">L {{ formatPrice(selectedProduct?.sale_price) }}</p>
+            </div>
+          </div>
+          <div class="quantity-selector">
+            <button @click="decreaseQuantity" class="qty-btn-modal">-</button>
+            <input
+              type="number"
+              v-model.number="selectedQuantity"
+              @blur="validateQuantity"
+              min="0.01"
+              step="0.01"
+              class="qty-input-modal-catalog"
+            />
+            <span class="unit-label">{{ selectedProduct?.unit || 'UNIDAD' }}</span>
+            <button @click="increaseQuantity" class="qty-btn-modal">+</button>
+          </div>
+          <div class="modal-buttons">
+            <button @click="confirmAddToCart" class="btn-add-confirm">
+              Agregar al Carrito
+            </button>
+            <button @click="closeQuantityModal" class="btn-cancel">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal de Producto Agregado -->
     <div v-if="showAddedToCartModal" class="modal-overlay" @click="closeAddedToCartModal">
       <div class="cart-success-modal" @click.stop>
@@ -398,7 +441,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { productsService, cartService, companyService } from '@/api/ecommerce'
 import ShopHeader from '@/components/ShopHeader.vue'
@@ -422,52 +465,72 @@ export default {
     const companyInfo = ref(null)
     const isLoggedIn = ref(false)
     const showAddedToCartModal = ref(false)
+    const showQuantityModal = ref(false)
+    const selectedProduct = ref(null)
+    const selectedQuantity = ref(1)
+    const allowOrderWithoutStock = ref(false)
 
     const searchQuery = ref('')
-    const selectedCategory = ref(null)
-    const selectedSubcategory = ref(null)
-    const selectedColor = ref(null)
-    const selectedCharacteristics = ref([])
-    const selectedSimulation = ref(null)
+    const selectedCategories = ref([])
+    const selectedSubcategories = ref([])
+    const selectedColors = ref([])
+    const selectedFinishes = ref([])
+    const selectedStyles = ref([])
+    const priceMin = ref(null)
+    const priceMax = ref(null)
     const sortBy = ref('newest')
     const currentPage = ref(1)
     const currentView = ref('porcelain')
+    const expandedCategories = ref([])
 
     const filterStates = reactive({
-      category: true,
-      subcategory: true,
+      price: true,
+      categories: true,
       color: true,
-      characteristics: true,
-      simulation: true
+      finish: true,
+      style: true
     })
 
-    const colors = [
-      { name: 'BLUE', hex: '#2563EB' },
-      { name: 'BEIGE', hex: '#F5DEB3' },
-      { name: 'WHITE', hex: '#FFFFFF' },
-      { name: 'BROWN', hex: '#8B4513' },
-      { name: 'GRAY', hex: '#6B7280' },
-      { name: 'LIGHT_GRAY', hex: '#D1D5DB' },
-      { name: 'GOLD', hex: '#FFD700' },
-      { name: 'BLACK', hex: '#000000' },
-      { name: 'GREEN', hex: '#059669' }
+    const availableColors = [
+      { value: 'azul', label: 'Azul', hex: '#2563EB' },
+      { value: 'beige', label: 'Beige', hex: '#F5DEB3' },
+      { value: 'blanco', label: 'Blanco', hex: '#FFFFFF' },
+      { value: 'marron', label: 'Marrón', hex: '#8B4513' },
+      { value: 'cafe', label: 'Café', hex: '#6F4E37' },
+      { value: 'gris', label: 'Gris', hex: '#6B7280' },
+      { value: 'gris_claro', label: 'Gris Claro', hex: '#D1D5DB' },
+      { value: 'dorado', label: 'Dorado', hex: '#FFD700' },
+      { value: 'negro', label: 'Negro', hex: '#000000' },
+      { value: 'verde', label: 'Verde', hex: '#059669' }
+    ]
+
+    const availableFinishes = [
+      { value: 'mate', label: 'Mate' },
+      { value: 'brillante', label: 'Brillante' },
+      { value: 'rustico', label: 'Rústico' }
+    ]
+
+    const availableStyles = [
+      { value: 'marmoleado', label: 'Marmoleado' },
+      { value: 'madera', label: 'Madera' },
+      { value: 'geometrico', label: 'Geométrico' },
+      { value: 'piedra', label: 'Piedra' }
     ]
 
     const hasActiveFilters = computed(() => {
       return searchQuery.value ||
-        selectedCategory.value ||
-        selectedSubcategory.value ||
-        selectedColor.value ||
-        selectedCharacteristics.value.length > 0 ||
-        selectedSimulation.value
+        selectedCategories.value.length > 0 ||
+        selectedSubcategories.value.length > 0 ||
+        selectedColors.value.length > 0 ||
+        selectedFinishes.value.length > 0 ||
+        selectedStyles.value.length > 0 ||
+        priceMin.value !== null ||
+        priceMax.value !== null
     })
 
-    const filteredSubcategories = computed(() => {
-      if (!selectedCategory.value) {
-        return subcategories.value
-      }
-      return subcategories.value.filter(sub => sub.category_id === selectedCategory.value)
-    })
+    const getCategorySubcategories = (categoryId) => {
+      return subcategories.value.filter(sub => sub.category_id === categoryId)
+    }
 
     const paginationPages = computed(() => {
       if (!pagination.value) return []
@@ -512,20 +575,26 @@ export default {
         }
 
         // Add filters only if they have values
-        if (selectedCategory.value) {
-          params.category_id = selectedCategory.value
+        if (selectedCategories.value.length > 0) {
+          params.category_ids = selectedCategories.value.join(',')
         }
-        if (selectedSubcategory.value) {
-          params.subcategory_id = selectedSubcategory.value
+        if (selectedSubcategories.value.length > 0) {
+          params.subcategory_ids = selectedSubcategories.value.join(',')
         }
-        if (selectedColor.value) {
-          params.color = selectedColor.value
+        if (selectedColors.value.length > 0) {
+          params.colors = selectedColors.value.join(',')
         }
-        if (selectedCharacteristics.value.length > 0) {
-          params.characteristics = selectedCharacteristics.value
+        if (selectedFinishes.value.length > 0) {
+          params.finishes = selectedFinishes.value.join(',')
         }
-        if (selectedSimulation.value) {
-          params.simulation = selectedSimulation.value
+        if (selectedStyles.value.length > 0) {
+          params.styles = selectedStyles.value.join(',')
+        }
+        if (priceMin.value !== null && priceMin.value !== '') {
+          params.price_min = priceMin.value
+        }
+        if (priceMax.value !== null && priceMax.value !== '') {
+          params.price_max = priceMax.value
         }
 
         const response = await productsService.getCatalog(params)
@@ -537,6 +606,11 @@ export default {
             isFavorite: false
           }))
           pagination.value = response.data.pagination
+
+          // Obtener configuración de e-commerce
+          if (response.data.config && response.data.config.allow_order_without_stock !== undefined) {
+            allowOrderWithoutStock.value = response.data.config.allow_order_without_stock
+          }
 
           // Cargar estado de favoritos si está logueado
           if (isLoggedIn.value) {
@@ -575,7 +649,7 @@ export default {
     const loadCartCount = async () => {
       try {
         const cart = JSON.parse(localStorage.getItem('ecommerce_cart') || '[]')
-        cartCount.value = cart.reduce((sum, item) => sum + item.quantity, 0)
+        cartCount.value = cart.length
       } catch (error) {
         cartCount.value = 0
       }
@@ -596,12 +670,27 @@ export default {
       filterStates[filterName] = !filterStates[filterName]
     }
 
-    const selectColor = (color) => {
-      if (selectedColor.value === color) {
-        selectedColor.value = null
+    const toggleCategory = (categoryId) => {
+      const index = expandedCategories.value.indexOf(categoryId)
+      if (index > -1) {
+        expandedCategories.value.splice(index, 1)
       } else {
-        selectedColor.value = color
+        expandedCategories.value.push(categoryId)
       }
+    }
+
+    const toggleColor = (color) => {
+      const index = selectedColors.value.indexOf(color)
+      if (index > -1) {
+        selectedColors.value.splice(index, 1)
+      } else {
+        selectedColors.value.push(color)
+      }
+      loadProducts()
+    }
+
+    const applyPriceFilter = () => {
+      currentPage.value = 1
       loadProducts()
     }
 
@@ -613,17 +702,13 @@ export default {
 
     const clearFilters = () => {
       searchQuery.value = ''
-      selectedCategory.value = null
-      selectedSubcategory.value = null
-      selectedColor.value = null
-      selectedCharacteristics.value = []
-      selectedSimulation.value = null
-      currentPage.value = 1
-      loadProducts()
-    }
-
-    const handleCategoryChange = () => {
-      selectedSubcategory.value = null
+      selectedCategories.value = []
+      selectedSubcategories.value = []
+      selectedColors.value = []
+      selectedFinishes.value = []
+      selectedStyles.value = []
+      priceMin.value = null
+      priceMax.value = null
       currentPage.value = 1
       loadProducts()
     }
@@ -631,6 +716,16 @@ export default {
     const handleSearch = () => {
       currentPage.value = 1
       loadProducts()
+    }
+
+    const isProductAvailable = (product) => {
+      // Si allow_order_without_stock está activado, siempre disponible
+      if (allowOrderWithoutStock.value) {
+        return true
+      }
+
+      // Si no, verificar stock
+      return product.stock_available > 0
     }
 
     const goToPage = (page) => {
@@ -650,38 +745,72 @@ export default {
         return
       }
 
+      // Mostrar modal de cantidad
+      selectedProduct.value = product
+      selectedQuantity.value = 1
+      showQuantityModal.value = true
+    }
+
+    const confirmAddToCart = async () => {
       try {
         const cart = JSON.parse(localStorage.getItem('ecommerce_cart') || '[]')
-        const existingItemIndex = cart.findIndex(item => item.product_id === product.id)
+        const existingItemIndex = cart.findIndex(item => item.product_id === selectedProduct.value.id)
 
         if (existingItemIndex !== -1) {
-          cart[existingItemIndex].quantity += 1
+          cart[existingItemIndex].quantity += selectedQuantity.value
         } else {
           cart.push({
-            product_id: product.id,
-            code: product.code,
-            name: product.name,
-            image: product.image,
-            category: product.category_name || '',
-            subcategory: product.subcategory_name || '',
-            brand: product.brand_name || '',
-            price: product.sale_price,
-            quantity: 1,
-            unit: product.unit,
-            tax_rate: product.tax_rate || 0
+            product_id: selectedProduct.value.id,
+            code: selectedProduct.value.code,
+            name: selectedProduct.value.name,
+            image: selectedProduct.value.image,
+            category: selectedProduct.value.category_name || '',
+            subcategory: selectedProduct.value.subcategory_name || '',
+            brand: selectedProduct.value.brand_name || '',
+            price: selectedProduct.value.sale_price,
+            quantity: selectedQuantity.value,
+            unit: selectedProduct.value.unit,
+            tax_rate: selectedProduct.value.tax_rate || 0
           })
         }
 
         localStorage.setItem('ecommerce_cart', JSON.stringify(cart))
-        cartCount.value++
+        cartCount.value = cart.length
         window.dispatchEvent(new Event('cart-updated'))
 
-        // Mostrar modal en lugar de alert
+        // Cerrar modal de cantidad y mostrar modal de confirmación
+        showQuantityModal.value = false
         showAddedToCartModal.value = true
       } catch (error) {
         console.error('Error adding to cart:', error)
         alert('Error al agregar el producto al carrito')
       }
+    }
+
+    const increaseQuantity = () => {
+      selectedQuantity.value = parseFloat((selectedQuantity.value + 1).toFixed(2))
+    }
+
+    const decreaseQuantity = () => {
+      if (selectedQuantity.value > 0.01) {
+        selectedQuantity.value = Math.max(0.01, parseFloat((selectedQuantity.value - 1).toFixed(2)))
+      }
+    }
+
+    const validateQuantity = () => {
+      let value = parseFloat(selectedQuantity.value)
+
+      if (isNaN(value) || value < 0.01) {
+        selectedQuantity.value = 0.01
+      } else {
+        selectedQuantity.value = parseFloat(value.toFixed(2))
+      }
+    }
+
+    const closeQuantityModal = () => {
+      showQuantityModal.value = false
+      selectedProduct.value = null
+      selectedQuantity.value = 1
     }
 
     // Cerrar modal y continuar comprando
@@ -692,7 +821,7 @@ export default {
     // Ir al carrito
     const goToCart = () => {
       showAddedToCartModal.value = false
-      router.push('/checkout')
+      router.push('/cart')
     }
 
     const toggleFavorite = async (product) => {
@@ -753,7 +882,11 @@ export default {
     }
 
     const formatPrice = (price) => {
-      return parseFloat(price).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+      if (!price && price !== 0) return '0.00'
+      return parseFloat(price).toLocaleString('es-HN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })
     }
 
     const getProductImage = (product) => {
@@ -774,6 +907,20 @@ export default {
       return '/placeholder-product.svg'
     }
 
+    const getOfferCondition = (product) => {
+      if (!product.has_offer) return null
+
+      if (product.offer_condition_type === 'compras_mayores' && product.offer_min_amount > 0) {
+        return `Válido al comprar más de L${formatPrice(product.offer_min_amount)} de este producto`
+      }
+
+      if (product.offer_condition_type === 'cantidades_mayores' && product.offer_min_quantity > 0) {
+        return `Válido al comprar ${product.offer_min_quantity} o más unidades de este producto`
+      }
+
+      return null
+    }
+
     onMounted(() => {
       // Verificar si el usuario está logueado
       const token = localStorage.getItem('ecommerce_token')
@@ -781,7 +928,7 @@ export default {
 
       // Load filters from URL query params
       if (route.query.category) {
-        selectedCategory.value = parseInt(route.query.category)
+        selectedCategories.value = [parseInt(route.query.category)]
       }
       if (route.query.search) {
         searchQuery.value = route.query.search
@@ -794,6 +941,21 @@ export default {
       loadCompanyInfo()
     })
 
+    // Watch for route changes (when clicking on category links)
+    watch(() => route.query.category, (newCategory, oldCategory) => {
+      if (newCategory !== oldCategory) {
+        // Update selected categories when route changes
+        if (newCategory) {
+          selectedCategories.value = [parseInt(newCategory)]
+        } else {
+          selectedCategories.value = []
+        }
+        // Reset to first page and reload products
+        currentPage.value = 1
+        loadProducts()
+      }
+    })
+
     return {
       products,
       categories,
@@ -803,32 +965,48 @@ export default {
       cartCount,
       companyInfo,
       searchQuery,
-      selectedCategory,
-      selectedSubcategory,
-      selectedColor,
-      selectedCharacteristics,
-      selectedSimulation,
+      selectedCategories,
+      selectedSubcategories,
+      selectedColors,
+      selectedFinishes,
+      selectedStyles,
+      priceMin,
+      priceMax,
+      expandedCategories,
       sortBy,
       currentView,
       filterStates,
-      colors,
+      availableColors,
+      availableFinishes,
+      availableStyles,
       hasActiveFilters,
-      filteredSubcategories,
+      getCategorySubcategories,
       paginationPages,
       isLoggedIn,
       showAddedToCartModal,
+      showQuantityModal,
+      selectedProduct,
+      selectedQuantity,
       loadProducts,
       toggleFilter,
-      selectColor,
+      toggleCategory,
+      toggleColor,
+      applyPriceFilter,
       switchView,
       clearFilters,
-      handleCategoryChange,
       handleSearch,
+      isProductAvailable,
       goToPage,
       addToCart,
+      confirmAddToCart,
+      increaseQuantity,
+      decreaseQuantity,
+      validateQuantity,
+      closeQuantityModal,
       toggleFavorite,
       formatPrice,
       getProductImage,
+      getOfferCondition,
       closeAddedToCartModal,
       goToCart
     }
@@ -994,6 +1172,155 @@ export default {
   color: white;
   font-weight: bold;
   text-shadow: 0 0 3px rgba(0,0,0,0.5);
+}
+
+.color-swatch i {
+  color: white;
+  font-size: 18px;
+  text-shadow: 0 0 3px rgba(0,0,0,0.5);
+}
+
+/* Price Range Filter */
+.price-range-content {
+  padding: 0.5rem 0;
+}
+
+.price-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.price-input-group {
+  flex: 1;
+}
+
+.price-input-group label {
+  display: block;
+  font-size: 0.75rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+.input-with-currency {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.currency {
+  position: absolute;
+  left: 0.75rem;
+  font-weight: 600;
+  color: var(--primary-color, #FF9F43);
+  z-index: 1;
+}
+
+.input-with-currency input {
+  padding-left: 2rem !important;
+  width: 100%;
+}
+
+.price-separator {
+  color: #999;
+  font-weight: 500;
+  margin-top: 1.25rem;
+}
+
+.btn-apply-price {
+  width: 100%;
+  padding: 0.625rem;
+  background: linear-gradient(135deg, var(--primary-color, #FF9F43) 0%, #ff8c2b 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.btn-apply-price:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 159, 67, 0.3);
+}
+
+/* Categories Tree */
+.categories-tree {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.category-item {
+  margin-bottom: 0.5rem;
+}
+
+.category-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.category-checkbox:hover {
+  background: #f8f9fa;
+}
+
+.category-checkbox input[type="checkbox"] {
+  margin: 0;
+}
+
+.category-label {
+  flex: 1;
+  font-weight: 500;
+  margin: 0;
+  cursor: pointer;
+}
+
+.category-expand {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.category-expand:hover {
+  background: #e9ecef;
+  color: var(--primary-color, #FF9F43);
+}
+
+.subcategories-list {
+  margin-left: 1.75rem;
+  margin-top: 0.5rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid #e9ecef;
+}
+
+.subcategory-option {
+  padding: 0.375rem 0.5rem;
+  margin-bottom: 0.25rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.subcategory-option:hover {
+  background: #f8f9fa;
+}
+
+.search-group {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 1rem;
 }
 
 /* Catalog Header */
@@ -1217,6 +1544,31 @@ export default {
   font-weight: 600;
 }
 
+.badge-offer {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: linear-gradient(135deg, #FF4757 0%, #FF6B6B 100%);
+  color: white;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(255, 71, 87, 0.3);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
 .product-details {
   padding: 1.2rem;
 }
@@ -1248,12 +1600,40 @@ export default {
 .product-price {
   display: flex;
   flex-direction: column;
+  gap: 0.25rem;
+}
+
+.price-with-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.price-original {
+  font-size: 0.9rem;
+  color: #999;
+  text-decoration: line-through;
+  font-weight: 500;
 }
 
 .price-amount {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--primary-color, #FF9F43);
+  color: #333;
+}
+
+.price-discounted {
+  color: #FF4757 !important;
+}
+
+.offer-condition {
+  font-size: 0.7rem;
+  color: #FF4757;
+  font-weight: 600;
+  background: rgba(255, 71, 87, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  margin-top: 0.25rem;
 }
 
 .price-tax {
@@ -1262,23 +1642,30 @@ export default {
 }
 
 .btn-add-cart {
-  background: var(--primary-color, #FF9F43);
+  background: linear-gradient(135deg, #FF9F43 0%, #ff8c2b 100%);
   color: white;
   border: none;
-  width: 45px;
-  height: 45px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s;
-  font-size: 1.2rem;
+  transition: all 0.3s ease;
+  font-size: 1.3rem;
+  box-shadow: 0 4px 12px rgba(255, 159, 67, 0.35);
 }
 
 .btn-add-cart:hover:not(:disabled) {
-  background: var(--primary-dark, #e68a2e);
-  transform: scale(1.1);
+  background: linear-gradient(135deg, #ff8c2b 0%, #FF9F43 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 159, 67, 0.5);
+}
+
+.btn-add-cart:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(255, 159, 67, 0.3);
 }
 
 .btn-add-cart:disabled {
@@ -1472,6 +1859,168 @@ export default {
 .btn-cart:active,
 .btn-continue:active {
   transform: translateY(0);
+}
+
+/* Modal de Seleccionar Cantidad */
+.quantity-modal {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  width: 90%;
+  animation: slideUp 0.3s ease;
+}
+
+.quantity-modal-content {
+  padding: 2rem;
+  position: relative;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: #666;
+  line-height: 1;
+  transition: color 0.3s;
+}
+
+.modal-close-btn:hover {
+  color: #000;
+}
+
+.quantity-modal-content h2 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a202c;
+  text-align: center;
+}
+
+.product-info-modal {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f7fafc;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.product-img-modal {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.product-info-modal h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a202c;
+}
+
+.product-price-modal {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--primary-color, #FF9F43);
+}
+
+.quantity-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.qty-btn-modal {
+  width: 45px;
+  height: 45px;
+  border: 2px solid #e2e8f0;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.qty-btn-modal:hover {
+  background: var(--primary-color, #FF9F43);
+  color: white;
+  border-color: var(--primary-color, #FF9F43);
+}
+
+.qty-input-modal-catalog {
+  width: 100px;
+  height: 45px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 600;
+  padding: 0 0.5rem;
+}
+
+.qty-input-modal-catalog:focus {
+  outline: none;
+  border-color: var(--primary-color, #FF9F43);
+}
+
+.quantity-selector .unit-label {
+  font-size: 1rem;
+  color: #666;
+  font-weight: 500;
+  white-space: nowrap;
+  min-width: 50px;
+}
+
+.btn-add-confirm {
+  flex: 1;
+  padding: 1rem 2rem;
+  background: var(--primary-color, #FF9F43);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-add-confirm:hover {
+  background: var(--primary-dark, #e68a2e);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 159, 67, 0.3);
+}
+
+.btn-cancel {
+  flex: 1;
+  padding: 1rem 2rem;
+  background: white;
+  color: #666;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-cancel:hover {
+  border-color: #cbd5e0;
+  background: #f7fafc;
 }
 
 /* Responsive */

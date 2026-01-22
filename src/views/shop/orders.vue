@@ -173,7 +173,11 @@ export default {
     }
 
     const formatPrice = (price) => {
-      return parseFloat(price || 0).toFixed(2)
+      if (!price && price !== 0) return '0.00'
+      return parseFloat(price).toLocaleString('es-HN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })
     }
 
     const formatDate = (date) => {

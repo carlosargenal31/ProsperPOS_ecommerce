@@ -44,7 +44,7 @@
           <!-- Left Column - Product Image -->
           <div class="col-lg-6">
             <div class="product-image-wrapper">
-              <div class="product-badge" v-if="product.stock_available <= 0">
+              <div class="product-badge" v-if="!isProductAvailable">
                 <span class="badge-out-of-stock">Agotado</span>
               </div>
               <div class="product-image-main">
@@ -100,6 +100,10 @@
             <div class="product-info-wrapper">
               <!-- Badges -->
               <div class="product-badges mb-2">
+                <span v-if="product.has_offer" class="offer-special-badge">
+                  <i class="ti ti-flame"></i>
+                  OFERTA ESPECIAL
+                </span>
                 <span class="category-badge">{{ product.category_name || 'Producto' }}</span>
                 <span v-if="product.brand_name" class="brand-badge">{{ product.brand_name }}</span>
               </div>
@@ -114,18 +118,31 @@
                   <span class="meta-value-sm">{{ product.code }}</span>
                 </div>
                 <div class="info-col">
-                  <span class="availability-badge-sm" :class="product.stock_available > 0 ? 'available' : 'out-of-stock'">
-                    <i class="ti" :class="product.stock_available > 0 ? 'ti-check-circle' : 'ti-x-circle'"></i>
-                    {{ product.stock_available > 0 ? 'Disponible' : 'Agotado' }}
+                  <span class="availability-badge-sm" :class="isProductAvailable ? 'available' : 'out-of-stock'">
+                    <i class="ti" :class="isProductAvailable ? 'ti-check-circle' : 'ti-x-circle'"></i>
+                    {{ isProductAvailable ? 'Disponible' : 'Agotado' }}
                   </span>
                 </div>
               </div>
 
               <!-- Price Section Compact -->
               <div class="product-price-section-compact">
-                <div class="price-row">
-                  <span class="currency">L</span>
-                  <span class="amount">{{ formatPrice(product.sale_price) }}</span>
+                <div v-if="product.has_offer" class="offer-price-wrapper">
+                  <!-- Para ambos tipos de oferta condicional, mostrar solo precio normal -->
+                  <div class="price-row">
+                    <span class="currency">L</span>
+                    <span class="amount">{{ formatPrice(product.sale_price) }}</span>
+                  </div>
+                  <div v-if="getOfferConditionDetail()" class="offer-condition-detail">
+                    <i class="ti ti-info-circle"></i>
+                    {{ getOfferConditionDetail() }}
+                  </div>
+                </div>
+                <div v-else>
+                  <div class="price-row">
+                    <span class="currency">L</span>
+                    <span class="amount">{{ formatPrice(product.sale_price) }}</span>
+                  </div>
                 </div>
                 <div class="tax-info" v-if="product.tax_rate > 0">
                   + {{ product.tax_rate }}% ISV
@@ -173,15 +190,16 @@
                         type="number"
                         class="qty-input-sm"
                         v-model.number="quantity"
-                        min="1"
+                        min="0.01"
+                        step="0.01"
                         :max="product.stock_available"
-                        readonly
+                        @blur="validateQuantity"
                       />
                       <button
                         class="qty-btn-sm"
                         type="button"
                         @click="increaseQuantity"
-                        :disabled="quantity >= product.stock_available || product.stock_available <= 0"
+                        :disabled="!allowOrderWithoutStock && (quantity >= product.stock_available || product.stock_available <= 0)"
                       >
                         <i class="ti ti-plus"></i>
                       </button>
@@ -191,7 +209,7 @@
                   <button
                     class="btn-add-to-cart-compact"
                     @click="addToCart"
-                    :disabled="product.stock_available <= 0 || addingToCart"
+                    :disabled="!isProductAvailable || addingToCart"
                   >
                     <i class="ti ti-shopping-cart"></i>
                     {{ addingToCart ? 'Agregando...' : 'Agregar al carrito' }}
@@ -205,6 +223,52 @@
                 Producto agregado exitosamente
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Related Products Section -->
+    <div v-if="relatedProducts.length > 0" class="related-products-section">
+      <div class="container-fluid px-4 py-4">
+        <h2 class="section-title">
+          <i class="ti ti-package"></i>
+          Productos Relacionados
+        </h2>
+        <p class="section-subtitle">También podrían interesarte estos artículos</p>
+
+        <div class="related-products-grid">
+          <div
+            v-for="relatedProduct in relatedProducts"
+            :key="relatedProduct.id"
+            class="related-product-card"
+          >
+            <router-link :to="`/shop/product/${relatedProduct.id}`" class="related-product-link">
+              <div class="related-product-image">
+                <img
+                  :src="getProductImage(relatedProduct)"
+                  :alt="relatedProduct.name"
+                />
+                <span v-if="relatedProduct.has_offer" class="related-badge-offer">
+                  OFERTA
+                </span>
+              </div>
+
+              <div class="related-product-info">
+                <h4 class="related-product-name">{{ relatedProduct.name }}</h4>
+                <p class="related-product-category" v-if="relatedProduct.category_name">
+                  {{ relatedProduct.category_name }}
+                </p>
+
+                <div class="related-product-price">
+                  <div v-if="relatedProduct.has_offer" class="related-price-with-offer">
+                    <span class="related-price-original">L{{ formatPrice(relatedProduct.original_price) }}</span>
+                    <span class="related-price-current">L{{ formatPrice(relatedProduct.sale_price) }}</span>
+                  </div>
+                  <span v-else class="related-price-current">L{{ formatPrice(relatedProduct.sale_price) }}</span>
+                </div>
+              </div>
+            </router-link>
           </div>
         </div>
       </div>
@@ -237,8 +301,23 @@ export default {
     const cartCount = ref(0)
     const companyInfo = ref(null)
     const selectedImageIndex = ref(0)
+    const allowOrderWithoutStock = ref(false)
+    const relatedProducts = ref([])
 
     const productId = computed(() => route.params.id)
+
+    // Computed para verificar si el producto está disponible
+    const isProductAvailable = computed(() => {
+      if (!product.value) return false
+
+      // Si allow_order_without_stock está activado, siempre disponible
+      if (allowOrderWithoutStock.value) {
+        return true
+      }
+
+      // Si no, verificar stock
+      return product.value.stock_available > 0
+    })
 
     // Computed para obtener todas las imágenes (imagen principal + galería)
     const allProductImages = computed(() => {
@@ -298,7 +377,14 @@ export default {
 
         if (response.success && response.data) {
           product.value = response.data
+
+          // Obtener configuración de e-commerce desde la respuesta
+          if (response.config && response.config.allow_order_without_stock !== undefined) {
+            allowOrderWithoutStock.value = response.config.allow_order_without_stock
+          }
+
           console.log('Product loaded:', product.value)
+          console.log('Allow order without stock:', allowOrderWithoutStock.value)
         } else {
           error.value = 'Producto no encontrado'
         }
@@ -319,6 +405,32 @@ export default {
       } catch (error) {
         console.error('Error loading company info:', error)
       }
+    }
+
+    const loadRelatedProducts = async () => {
+      try {
+        const response = await productsService.getRelatedProducts(productId.value, { limit: 8 })
+        if (response.success && response.data) {
+          relatedProducts.value = response.data
+        }
+      } catch (error) {
+        console.error('Error loading related products:', error)
+        relatedProducts.value = []
+      }
+    }
+
+    const getOfferConditionDetail = () => {
+      if (!product.value || !product.value.has_offer) return null
+
+      if (product.value.offer_condition_type === 'compras_mayores' && product.value.offer_min_amount > 0) {
+        return `*Precio promocional válido al comprar más de L${formatPrice(product.value.offer_min_amount)} de este producto`
+      }
+
+      if (product.value.offer_condition_type === 'cantidades_mayores' && product.value.offer_min_quantity > 0) {
+        return `*Precio promocional válido al comprar ${product.value.offer_min_quantity} o más unidades de este producto`
+      }
+
+      return null
     }
 
     const getProductImage = (product) => {
@@ -356,7 +468,11 @@ export default {
     }
 
     const formatPrice = (price) => {
-      return parseFloat(price).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+      if (!price && price !== 0) return '0.00'
+      return parseFloat(price).toLocaleString('es-HN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })
     }
 
     const increaseQuantity = () => {
@@ -366,9 +482,31 @@ export default {
     }
 
     const decreaseQuantity = () => {
-      if (quantity.value > 1) {
-        quantity.value--
+      if (quantity.value > 0.01) {
+        quantity.value = Math.max(0.01, parseFloat((quantity.value - 1).toFixed(2)))
       }
+    }
+
+    const validateQuantity = () => {
+      // Convertir a número y validar
+      let value = parseFloat(quantity.value)
+
+      // Si no es un número válido, establecer mínimo
+      if (isNaN(value) || value < 0.01) {
+        quantity.value = 0.01
+        return
+      }
+
+      // Redondear a 2 decimales
+      value = parseFloat(value.toFixed(2))
+
+      // Verificar stock máximo disponible
+      if (product.value && value > product.value.stock_available) {
+        value = product.value.stock_available
+      }
+
+      // Actualizar el valor
+      quantity.value = value
     }
 
     const addToCart = async () => {
@@ -396,7 +534,9 @@ export default {
             name: product.value.name,
             image: product.value.image,
             category: product.value.category_name || '',
+            category_id: product.value.category_id || null,
             subcategory: product.value.subcategory_name || '',
+            subcategory_id: product.value.subcategory_id || null,
             brand: product.value.brand_name || '',
             price: product.value.sale_price,
             tax_rate: product.value.tax_rate || 0,
@@ -406,7 +546,7 @@ export default {
         }
 
         localStorage.setItem('ecommerce_cart', JSON.stringify(cart))
-        cartCount.value = cart.reduce((total, item) => total + item.quantity, 0)
+        cartCount.value = cart.length
         window.dispatchEvent(new Event('cart-updated'))
 
         addedToCart.value = true
@@ -422,13 +562,14 @@ export default {
 
     const loadCartCount = () => {
       const cart = JSON.parse(localStorage.getItem('ecommerce_cart') || '[]')
-      cartCount.value = cart.reduce((total, item) => total + item.quantity, 0)
+      cartCount.value = cart.length
     }
 
     onMounted(() => {
       fetchProduct()
       loadCompanyInfo()
       loadCartCount()
+      loadRelatedProducts()
     })
 
     return {
@@ -441,13 +582,18 @@ export default {
       cartCount,
       companyInfo,
       selectedImageIndex,
+      allowOrderWithoutStock,
+      relatedProducts,
+      isProductAvailable,
       allProductImages,
       selectedImageUrl,
       getProductImage,
+      getOfferConditionDetail,
       handleImageError,
       formatPrice,
       increaseQuantity,
       decreaseQuantity,
+      validateQuantity,
       addToCart,
       selectImage,
       previousImage,
@@ -693,7 +839,7 @@ export default {
 
 /* Price Section */
 .product-price-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: white;
   padding: 2rem;
   border-radius: 12px;
   margin: 2rem 0;
@@ -703,21 +849,23 @@ export default {
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
-  color: white;
+  color: #333;
 }
 
 .currency {
   font-size: 1.5rem;
   font-weight: 600;
+  color: #333;
 }
 
 .amount {
   font-size: 3rem;
   font-weight: 700;
+  color: #333;
 }
 
 .price-tax {
-  color: rgba(255,255,255,0.9);
+  color: #333;
   font-size: 0.875rem;
   margin-top: 0.5rem;
 }
@@ -1009,7 +1157,7 @@ export default {
 }
 
 .product-price-section-compact {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: white;
   padding: 1.25rem;
   border-radius: 8px;
   margin: 1rem 0;
@@ -1019,11 +1167,11 @@ export default {
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
-  color: white;
+  color: #333;
 }
 
 .tax-info {
-  color: rgba(255,255,255,0.9);
+  color: #333;
   font-size: 0.85rem;
   margin-top: 0.25rem;
 }
@@ -1261,6 +1409,274 @@ export default {
 
   .next-btn {
     right: 5px;
+  }
+}
+
+/* Offer Styles */
+.offer-special-badge {
+  background: linear-gradient(135deg, #FF4757 0%, #FF6B6B 100%);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 12px rgba(255, 71, 87, 0.3);
+  animation: pulse-offer 2s ease-in-out infinite;
+}
+
+@keyframes pulse-offer {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 2px 12px rgba(255, 71, 87, 0.3);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 4px 16px rgba(255, 71, 87, 0.4);
+  }
+}
+
+.offer-price-wrapper {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.price-before {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.label-antes {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 600;
+}
+
+.price-original-detail {
+  font-size: 1.2rem;
+  color: #999;
+  text-decoration: line-through;
+  font-weight: 600;
+}
+
+.price-row-special {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.price-now {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.label-ahora {
+  font-size: 0.9rem;
+  color: #FF4757;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.special-price {
+  color: #FF4757 !important;
+}
+
+.price-now .currency {
+  color: #FF4757 !important;
+}
+
+.price-now .amount {
+  color: #FF4757 !important;
+}
+
+.savings-badge {
+  background: #22C55E;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+}
+
+.offer-condition-detail {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #FF4757;
+  font-weight: 600;
+  background: rgba(255, 71, 87, 0.1);
+  padding: 0.75rem;
+  border-radius: 8px;
+  border-left: 3px solid #FF4757;
+}
+
+/* Related Products Section */
+.related-products-section {
+  background: #f8f9fa;
+  padding: 3rem 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.section-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.section-title i {
+  color: #f97316;
+  font-size: 2rem;
+}
+
+.section-subtitle {
+  color: #64748b;
+  font-size: 1rem;
+  margin-bottom: 2rem;
+}
+
+.related-products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.related-product-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.related-product-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.related-product-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.related-product-image {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.related-product-image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.related-badge-offer {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: linear-gradient(135deg, #FF4757 0%, #FF6B6B 100%);
+  color: white;
+  padding: 0.35rem 0.75rem;
+  border-radius: 15px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(255, 71, 87, 0.3);
+}
+
+.related-product-info {
+  padding: 1.25rem;
+}
+
+.related-product-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.5rem 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+.related-product-category {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin: 0 0 1rem 0;
+}
+
+.related-product-price {
+  margin-top: 0.75rem;
+}
+
+.related-price-with-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.related-price-original {
+  font-size: 0.85rem;
+  color: #999;
+  text-decoration: line-through;
+  font-weight: 500;
+}
+
+.related-price-current {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f97316;
+}
+
+.related-price-with-offer .related-price-current {
+  color: #FF4757;
+}
+
+@media (max-width: 768px) {
+  .related-products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1rem;
+  }
+
+  .related-product-image {
+    height: 150px;
+  }
+
+  .price-row-special {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .savings-badge {
+    align-self: flex-start;
   }
 }
 </style>
