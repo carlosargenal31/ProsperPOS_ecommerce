@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Limpiar Carrito</title>
+</head>
+<body>
+    <h1>Limpiador de Carrito</h1>
+    <button onclick="clearCart()">Limpiar Carrito</button>
+    <button onclick="showCart()">Mostrar Carrito Actual</button>
+    <pre id="output"></pre>
+
+    <script>
+        function clearCart() {
+            localStorage.removeItem('ecommerce_cart');
+            document.getElementById('output').textContent = 'Carrito limpiado exitosamente';
+            window.dispatchEvent(new Event('cart-updated'));
+        }
+
+        function showCart() {
+            const cart = localStorage.getItem('ecommerce_cart');
+            if (cart) {
+                const parsed = JSON.parse(cart);
+                document.getElementById('output').textContent = JSON.stringify(parsed, null, 2);
+            } else {
+                document.getElementById('output').textContent = 'Carrito vacío';
+            }
+        }
+
+        // Mostrar carrito al cargar
+        showCart();
+    </script>
+</body>
+</html>
