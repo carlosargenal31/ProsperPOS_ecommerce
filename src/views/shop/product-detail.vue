@@ -447,7 +447,7 @@ export default {
         }
 
         // Si es una ruta relativa, construir URL completa
-        const baseUrl = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'
+        const baseUrl = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || ''
 
         // Si comienza con /, usar directamente
         if (product.image.startsWith('/')) {

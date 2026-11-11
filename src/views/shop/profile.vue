@@ -1046,7 +1046,7 @@ const billingForm = ref({
 // Cargar departamentos desde el API
 const loadStates = async () => {
   try {
-    const response = await axios.get('http://localhost:3000/api/v1/locations/states')
+    const response = await axios.get('/api/v1/locations/states')
     if (response.data && response.data.success) {
       states.value = response.data.data
     }
@@ -1067,7 +1067,7 @@ const loadCitiesByState = async (departmentName) => {
     // Buscar el ID del departamento por nombre
     const state = states.value.find(s => s.name === departmentName)
     if (state) {
-      const response = await axios.get(`http://localhost:3000/api/v1/locations/cities/${state.id}`)
+      const response = await axios.get(`/api/v1/locations/cities/${state.id}`)
       if (response.data && response.data.success) {
         cities.value = response.data.data
       }
@@ -1292,7 +1292,7 @@ const updateProfile = async () => {
     }
 
     const response = await axios.put(
-      'http://localhost:3000/api/v1/ecommerce/customers/profile',
+      '/api/v1/ecommerce/customers/profile',
       {
         first_name: customerData.value.first_name,
         last_name: customerData.value.last_name,
@@ -1357,7 +1357,7 @@ const handleChangePassword = async () => {
     }
 
     const response = await axios.put(
-      'http://localhost:3000/api/v1/ecommerce/customers/change-password',
+      '/api/v1/ecommerce/customers/change-password',
       {
         currentPassword: passwordForm.value.currentPassword,
         newPassword: passwordForm.value.newPassword
@@ -1401,7 +1401,7 @@ const loadAddresses = async () => {
     if (!token) return
 
     const response = await axios.get(
-      'http://localhost:3000/api/v1/ecommerce/customers/addresses',
+      '/api/v1/ecommerce/customers/addresses',
       {
         headers: {
           Authorization: `Bearer ${token}`
@@ -1429,8 +1429,8 @@ const saveAddress = async () => {
     }
 
     const url = editingAddress.value
-      ? `http://localhost:3000/api/v1/ecommerce/customers/addresses/${editingAddress.value.id}`
-      : 'http://localhost:3000/api/v1/ecommerce/customers/addresses'
+      ? `/api/v1/ecommerce/customers/addresses/${editingAddress.value.id}`
+      : '/api/v1/ecommerce/customers/addresses'
 
     const method = editingAddress.value ? 'put' : 'post'
 
@@ -1500,7 +1500,7 @@ const deleteAddress = async (addressId) => {
     }
 
     const response = await axios.delete(
-      `http://localhost:3000/api/v1/ecommerce/customers/addresses/${addressId}`,
+      `/api/v1/ecommerce/customers/addresses/${addressId}`,
       {
         headers: {
           Authorization: `Bearer ${token}`
@@ -1527,7 +1527,7 @@ const setDefaultAddress = async (addressId) => {
     }
 
     const response = await axios.put(
-      `http://localhost:3000/api/v1/ecommerce/customers/addresses/${addressId}/set-default`,
+      `/api/v1/ecommerce/customers/addresses/${addressId}/set-default`,
       {},
       {
         headers: {
@@ -1572,7 +1572,7 @@ const loadBillingInfo = async () => {
     if (!token) return
 
     const response = await axios.get(
-      'http://localhost:3000/api/v1/ecommerce/customers/billing-info',
+      '/api/v1/ecommerce/customers/billing-info',
       {
         headers: {
           Authorization: `Bearer ${token}`
@@ -1600,8 +1600,8 @@ const saveBilling = async () => {
     }
 
     const url = editingBilling.value
-      ? `http://localhost:3000/api/v1/ecommerce/customers/billing-info/${editingBilling.value.id}`
-      : 'http://localhost:3000/api/v1/ecommerce/customers/billing-info'
+      ? `/api/v1/ecommerce/customers/billing-info/${editingBilling.value.id}`
+      : '/api/v1/ecommerce/customers/billing-info'
 
     const method = editingBilling.value ? 'put' : 'post'
 
@@ -1660,7 +1660,7 @@ const deleteBilling = async (billingId) => {
     }
 
     const response = await axios.delete(
-      `http://localhost:3000/api/v1/ecommerce/customers/billing-info/${billingId}`,
+      `/api/v1/ecommerce/customers/billing-info/${billingId}`,
       {
         headers: {
           Authorization: `Bearer ${token}`
@@ -1687,7 +1687,7 @@ const setDefaultBilling = async (billingId) => {
     }
 
     const response = await axios.put(
-      `http://localhost:3000/api/v1/ecommerce/customers/billing-info/${billingId}/set-default`,
+      `/api/v1/ecommerce/customers/billing-info/${billingId}/set-default`,
       {},
       {
         headers: {
@@ -1726,7 +1726,7 @@ const loadFavorites = async () => {
     if (!token) return
 
     const response = await axios.get(
-      'http://localhost:3000/api/v1/ecommerce/favorites',
+      '/api/v1/ecommerce/favorites',
       {
         headers: {
           Authorization: `Bearer ${token}`
@@ -1756,7 +1756,7 @@ const confirmRemoveFavorite = async () => {
     }
 
     const response = await axios.delete(
-      `http://localhost:3000/api/v1/ecommerce/favorites/${productToRemove.value}`,
+      `/api/v1/ecommerce/favorites/${productToRemove.value}`,
       {
         headers: {
           Authorization: `Bearer ${token}`
@@ -1822,7 +1822,7 @@ const getProductImage = (product) => {
     if (product.image.startsWith('http')) {
       return product.image
     }
-    const baseUrl = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'
+    const baseUrl = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || ''
     return `${baseUrl}${product.image}`
   }
   return '/placeholder-product.svg'
@@ -1836,7 +1836,7 @@ const loadOrders = async () => {
     if (!token) return
 
     const response = await axios.get(
-      'http://localhost:3000/api/v1/ecommerce/orders',
+      '/api/v1/ecommerce/orders',
       {
         headers: {
           Authorization: `Bearer ${token}`
@@ -1904,7 +1904,7 @@ const showStatusHistoryForOrder = async (order) => {
     console.log('Solicitando historial para pedido ID:', order.id)
 
     const response = await axios.get(
-      `http://localhost:3000/api/v1/ecommerce/orders/${order.id}/status-history`,
+      `/api/v1/ecommerce/orders/${order.id}/status-history`,
       {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1966,7 +1966,7 @@ const confirmCancelOrder = async () => {
     }
 
     const response = await axios.post(
-      `http://localhost:3000/api/v1/ecommerce/orders/${orderToCancel.value.order_number}/cancel`,
+      `/api/v1/ecommerce/orders/${orderToCancel.value.order_number}/cancel`,
       {
         cancellation_reason: cancellationReason.value.trim()
       },

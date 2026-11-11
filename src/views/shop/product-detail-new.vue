@@ -337,7 +337,7 @@ export default {
         loading.value = true
         error.value = null
 
-        const response = await axios.get(`http://localhost:3000/api/v1/ecommerce/products/${productId.value}`)
+        const response = await axios.get(`/api/v1/ecommerce/products/${productId.value}`)
 
         if (response.data && response.data.success && response.data.data) {
           product.value = response.data.data
@@ -358,7 +358,7 @@ export default {
       if (!product.value) return
 
       try {
-        const response = await axios.get(`http://localhost:3000/api/v1/ecommerce/products?category_id=${product.value.category_id}&limit=6`)
+        const response = await axios.get(`/api/v1/ecommerce/products?category_id=${product.value.category_id}&limit=6`)
         if (response.data && response.data.success) {
           relatedProducts.value = (response.data.data.products || []).filter(p => p.id !== product.value.id).slice(0, 5)
         }
@@ -369,7 +369,7 @@ export default {
 
     const getProductImage = (product) => {
       if (product.image && product.image.trim() !== '') {
-        return `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${product.image}`
+        return `${import.meta.env.VITE_API_URL || ''}${product.image}`
       }
       return '/placeholder-product.svg'
     }

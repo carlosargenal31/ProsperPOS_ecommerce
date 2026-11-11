@@ -1166,7 +1166,7 @@ const validateItemQuantity = (item) => {
 
 const fetchCompanyInfo = async () => {
   try {
-    const response = await axios.get('http://localhost:3000/api/v1/companies/public/default')
+    const response = await axios.get('/api/v1/companies/public/default')
     if (response.data && response.data.success) {
       companyInfo.value = response.data.data
     } else if (response.data) {
@@ -1179,7 +1179,7 @@ const fetchCompanyInfo = async () => {
 
 const fetchStates = async () => {
   try {
-    const response = await axios.get('http://localhost:3000/api/v1/locations/states')
+    const response = await axios.get('/api/v1/locations/states')
     if (response.data && response.data.success) {
       states.value = response.data.data
     }
@@ -1196,7 +1196,7 @@ const fetchCitiesByState = async (stateId) => {
 
   loadingCities.value = true
   try {
-    const response = await axios.get(`http://localhost:3000/api/v1/locations/cities/${stateId}`)
+    const response = await axios.get(`/api/v1/locations/cities/${stateId}`)
     if (response.data && response.data.success) {
       cities.value = response.data.data
     }
@@ -1275,7 +1275,7 @@ const applyPromo = async () => {
       }
     }
 
-    const response = await axios.post('http://localhost:3000/api/v1/ecommerce/cart/validate-coupon', cartData)
+    const response = await axios.post('/api/v1/ecommerce/cart/validate-coupon', cartData)
 
     console.log('✅ Respuesta del servidor:', response.data)
 
@@ -1326,7 +1326,7 @@ const loadActiveOffers = async () => {
       }
     }
 
-    const response = await axios.post('http://localhost:3000/api/v1/ecommerce/cart/active-offers', cartData)
+    const response = await axios.post('/api/v1/ecommerce/cart/active-offers', cartData)
 
     if (response.data.success) {
       activeOffers.value = response.data.data.offers
@@ -1572,7 +1572,7 @@ const submitOrder = async () => {
     // Crear pedido en la base de datos
     const token = localStorage.getItem('ecommerce_token')
     const response = await axios.post(
-      'http://localhost:3000/api/v1/ecommerce/orders',
+      '/api/v1/ecommerce/orders',
       orderData,
       {
         headers: {
@@ -1683,7 +1683,7 @@ const loadSavedAddresses = async () => {
     if (!token) return
 
     const response = await axios.get(
-      'http://localhost:3000/api/v1/ecommerce/customers/addresses',
+      '/api/v1/ecommerce/customers/addresses',
       {
         headers: {
           Authorization: `Bearer ${token}`
@@ -1705,7 +1705,7 @@ const loadSavedBillingInfo = async () => {
     if (!token) return
 
     const response = await axios.get(
-      'http://localhost:3000/api/v1/ecommerce/customers/billing-info',
+      '/api/v1/ecommerce/customers/billing-info',
       {
         headers: {
           Authorization: `Bearer ${token}`
@@ -1765,7 +1765,7 @@ const saveCustomerProfile = async () => {
     if (!token) return
 
     const response = await axios.put(
-      'http://localhost:3000/api/v1/ecommerce/customers/profile',
+      '/api/v1/ecommerce/customers/profile',
       {
         first_name: customerInfo.value.firstName,
         last_name: customerInfo.value.lastName,
@@ -1801,7 +1801,7 @@ const saveCustomerAddress = async () => {
     const cityName = cities.value.find(c => c.id === deliveryInfo.value.municipalityId)?.name || ''
 
     const response = await axios.post(
-      'http://localhost:3000/api/v1/ecommerce/customers/addresses',
+      '/api/v1/ecommerce/customers/addresses',
       {
         recipient_name: deliveryInfo.value.receiverName || `${customerInfo.value.firstName} ${customerInfo.value.lastName}`,
         phone: deliveryInfo.value.receiverPhone || customerInfo.value.phone,
@@ -1840,7 +1840,7 @@ const saveCustomerBilling = async () => {
     if (!token) return
 
     const response = await axios.post(
-      'http://localhost:3000/api/v1/ecommerce/customers/billing-info',
+      '/api/v1/ecommerce/customers/billing-info',
       {
         label: billingLabel.value || null,
         business_name: paymentInfo.value.businessName,

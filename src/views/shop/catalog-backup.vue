@@ -278,7 +278,7 @@ export default {
 
     const getProductImage = (product) => {
       if (product.image) {
-        return `${import.meta.env.VITE_UPLOAD_URL || 'http://localhost:3000/uploads'}/products/${product.image}`
+        return `${import.meta.env.VITE_UPLOAD_URL || '/uploads'}/products/${product.image}`
       }
       return '/placeholder-product.svg'
     }

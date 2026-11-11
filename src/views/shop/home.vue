@@ -276,7 +276,7 @@ export default {
           return product.image
         }
         // Otherwise, construct the URL from the API base
-        const baseUrl = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'
+        const baseUrl = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || ''
         return `${baseUrl}${product.image}`
       }
       return '/placeholder-product.svg'

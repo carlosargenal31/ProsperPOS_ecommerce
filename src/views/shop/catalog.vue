@@ -835,7 +835,7 @@ export default {
         if (product.isFavorite) {
           // Eliminar de favoritos
           await axios.delete(
-            `http://localhost:3000/api/v1/ecommerce/favorites/${product.id}`,
+            `/api/v1/ecommerce/favorites/${product.id}`,
             {
               headers: { Authorization: `Bearer ${token}` }
             }
@@ -844,7 +844,7 @@ export default {
         } else {
           // Agregar a favoritos
           await axios.post(
-            'http://localhost:3000/api/v1/ecommerce/favorites',
+            '/api/v1/ecommerce/favorites',
             { product_id: product.id },
             {
               headers: { Authorization: `Bearer ${token}` }
@@ -864,7 +864,7 @@ export default {
         if (!token) return
 
         const response = await axios.get(
-          'http://localhost:3000/api/v1/ecommerce/favorites',
+          '/api/v1/ecommerce/favorites',
           {
             headers: { Authorization: `Bearer ${token}` }
           }
@@ -901,7 +901,7 @@ export default {
           return product.image
         }
         // Otherwise, construct the URL from the API base
-        const baseUrl = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'
+        const baseUrl = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || ''
         return `${baseUrl}${product.image}`
       }
       return '/placeholder-product.svg'

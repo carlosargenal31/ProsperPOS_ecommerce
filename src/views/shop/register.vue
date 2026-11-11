@@ -211,7 +211,7 @@ const handleGoogleTokenResponse = async (tokenResponse) => {
     const userInfo = await userInfoResponse.json()
 
     // Enviar al backend (el backend necesitará manejar access tokens también)
-    const result = await axios.post('http://localhost:3000/api/v1/auth/google-oauth', {
+    const result = await axios.post('/api/v1/auth/google-oauth', {
       access_token: tokenResponse.access_token,
       email: userInfo.email,
       given_name: userInfo.given_name,
@@ -250,7 +250,7 @@ const handleGoogleCallback = async (response) => {
   isSubmitting.value = true
 
   try {
-    const result = await axios.post('http://localhost:3000/api/v1/auth/google', {
+    const result = await axios.post('/api/v1/auth/google', {
       token: response.credential
     })
 
@@ -295,7 +295,7 @@ const handleRegister = async () => {
   isSubmitting.value = true
 
   try {
-    const response = await axios.post('http://localhost:3000/api/v1/ecommerce/customers/register', {
+    const response = await axios.post('/api/v1/ecommerce/customers/register', {
       first_name: formData.value.firstName,
       last_name: formData.value.lastName,
       email: formData.value.email,

@@ -11,6 +11,11 @@ export default defineConfig({
   },
   server: {
     port: 3002,
-    host: true
+    host: true,
+    // Igual que en producción: /api y /uploads van al backend
+    proxy: {
+      '/api': { target: 'http://localhost:3000', changeOrigin: true },
+      '/uploads': { target: 'http://localhost:3000', changeOrigin: true }
+    }
   }
 })

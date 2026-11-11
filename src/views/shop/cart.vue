@@ -248,7 +248,7 @@ const loadCart = async () => {
         if (!item.category_id || !item.subcategory_id) {
           // Fetch product data from API to get missing IDs
           try {
-            const response = await axios.get(`http://localhost:3000/api/v1/ecommerce/products/${item.product_id}`)
+            const response = await axios.get(`/api/v1/ecommerce/products/${item.product_id}`)
             if (response.data.success && response.data.data) {
               const product = response.data.data
               fixedCart.push({
@@ -351,7 +351,7 @@ const applyPromo = async () => {
       }
     }
 
-    const response = await axios.post('http://localhost:3000/api/v1/ecommerce/cart/validate-coupon', cartData)
+    const response = await axios.post('/api/v1/ecommerce/cart/validate-coupon', cartData)
 
     if (response.data.success) {
       const newCoupon = response.data.data.coupon
@@ -407,7 +407,7 @@ const revalidateCoupons = async () => {
         }
       }
 
-      const response = await axios.post('http://localhost:3000/api/v1/ecommerce/cart/validate-coupon', cartData)
+      const response = await axios.post('/api/v1/ecommerce/cart/validate-coupon', cartData)
 
       if (response.data.success) {
         // El cupón sigue siendo válido, actualizar con nuevo descuento
@@ -448,7 +448,7 @@ const loadActiveOffers = async () => {
       }
     }
 
-    const response = await axios.post('http://localhost:3000/api/v1/ecommerce/cart/active-offers', cartData)
+    const response = await axios.post('/api/v1/ecommerce/cart/active-offers', cartData)
 
     if (response.data.success) {
       activeOffers.value = response.data.data.offers
@@ -475,7 +475,7 @@ const formatPrice = (price) => {
 
 const fetchCompanyInfo = async () => {
   try {
-    const response = await axios.get('http://localhost:3000/api/v1/companies/public/default')
+    const response = await axios.get('/api/v1/companies/public/default')
     if (response.data && response.data.success) {
       companyInfo.value = response.data.data
     } else if (response.data) {

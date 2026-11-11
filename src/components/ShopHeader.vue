@@ -253,7 +253,7 @@ const formatPrice = (price) => {
 
 const fetchCompanyInfo = async () => {
   try {
-    const response = await axios.get('http://localhost:3000/api/v1/companies/public/default')
+    const response = await axios.get('/api/v1/companies/public/default')
     if (response.data && response.data.success) {
       companyInfo.value = response.data.data
     } else if (response.data) {
@@ -266,7 +266,7 @@ const fetchCompanyInfo = async () => {
 
 const fetchCategories = async () => {
   try {
-    const response = await axios.get('http://localhost:3000/api/v1/ecommerce/categories', {
+    const response = await axios.get('/api/v1/ecommerce/categories', {
       params: { visible_only: 'true' }
     })
     if (response.data && response.data.success) {

@@ -123,7 +123,7 @@ const getTikTokUrl = () => {
 
 const fetchCompanyInfo = async () => {
   try {
-    const response = await axios.get('http://localhost:3000/api/v1/companies/public/default')
+    const response = await axios.get('/api/v1/companies/public/default')
     if (response.data && response.data.success) {
       companyInfo.value = response.data.data
     } else if (response.data) {
