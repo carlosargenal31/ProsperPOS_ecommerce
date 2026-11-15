@@ -4,8 +4,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "__API_ORIGIN__/api/:path*" },
-    { "source": "/uploads/:path*", "destination": "__API_ORIGIN__/uploads/:path*" },
+    { "source": "/api/:path*", "destination": "https://api.myprosperpos.com/api/:path*" },
+    { "source": "/uploads/:path*", "destination": "https://api.myprosperpos.com/uploads/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
